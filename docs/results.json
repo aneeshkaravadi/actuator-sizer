@@ -1,0 +1,119 @@
+{
+  "fastest_balanced_lift_s": {
+    "squat": 3.8747386574745177,
+    "stoop": 1.4733148396015165
+  },
+  "lift_peaks_both_sides": {
+    "squat": {
+      "ankle": {
+        "peak_torque_Nm": 65.46177580244978,
+        "rms_torque_Nm": 48.75996888862932,
+        "peak_speed_rad_s": 0.25338759355039636,
+        "peak_power_W": 16.541731250420757
+      },
+      "knee": {
+        "peak_torque_Nm": 162.8742347806059,
+        "rms_torque_Nm": 112.21038873169512,
+        "peak_speed_rad_s": 1.1330983297625974,
+        "peak_power_W": 172.25947111367444
+      },
+      "hip": {
+        "peak_torque_Nm": 205.6170991070378,
+        "rms_torque_Nm": 157.52790678184235,
+        "peak_speed_rad_s": 1.0591552425354454,
+        "peak_power_W": 165.18431196936413
+      },
+      "shoulder": {
+        "peak_torque_Nm": 130.61361787981738,
+        "rms_torque_Nm": 126.57700800390747,
+        "peak_speed_rad_s": 0.2719139961098791,
+        "peak_power_W": 35.060768533940646
+      },
+      "elbow": {
+        "peak_torque_Nm": 89.8078698779079,
+        "rms_torque_Nm": 78.1394990078125,
+        "peak_speed_rad_s": 0.24961198306105423,
+        "peak_power_W": 19.70500903787945
+      }
+    },
+    "stoop": {
+      "ankle": {
+        "peak_torque_Nm": 174.9129585925727,
+        "rms_torque_Nm": 98.491812728897,
+        "peak_speed_rad_s": 0.3073275274299796,
+        "peak_power_W": 52.1903077953396
+      },
+      "knee": {
+        "peak_torque_Nm": 237.9837058034729,
+        "rms_torque_Nm": 168.2027097473982,
+        "peak_speed_rad_s": 0.2573804127393788,
+        "peak_power_W": 53.90492179684368
+      },
+      "hip": {
+        "peak_torque_Nm": 441.33289522737766,
+        "rms_torque_Nm": 289.2869614284357,
+        "peak_speed_rad_s": 2.58549320897405,
+        "peak_power_W": 789.1278309283895
+      },
+      "shoulder": {
+        "peak_torque_Nm": 133.95213501428998,
+        "rms_torque_Nm": 97.38583108290395,
+        "peak_speed_rad_s": 1.8423163481439717,
+        "peak_power_W": 138.2615986190544
+      },
+      "elbow": {
+        "peak_torque_Nm": 89.90359925970051,
+        "rms_torque_Nm": 62.637089079428456,
+        "peak_speed_rad_s": 0.6299667025777256,
+        "peak_power_W": 31.70418471176172
+      }
+    }
+  },
+  "hip_ratio_trade": {
+    "illustrative frameless S": null,
+    "illustrative frameless M": {
+      "ratio": 53.3,
+      "mean_copper_W": 27.49,
+      "reflected_inertia_kgm2": 0.341
+    },
+    "illustrative frameless L": {
+      "ratio": 36.8,
+      "mean_copper_W": 12.62,
+      "reflected_inertia_kgm2": 0.609
+    }
+  },
+  "min_ratio_for_120_totes_per_hour": {
+    "ankle": 6.3,
+    "knee": 8.5,
+    "hip": 12.7,
+    "shoulder": 10.1,
+    "elbow": 7.1
+  },
+  "hold_torque_per_side_Nm": {
+    "ankle": -28.2,
+    "knee": -38.0,
+    "hip": -51.8,
+    "shoulder": -65.3,
+    "elbow": -44.9
+  },
+  "sea_impact": {
+    "N20": {
+      "rigid_Nm": 18,
+      "k_3000_Nm": 21
+    },
+    "N50": {
+      "rigid_Nm": 117,
+      "k_3000_Nm": 54
+    },
+    "N120": {
+      "rigid_Nm": 470,
+      "k_3000_Nm": 98
+    }
+  },
+  "sea_static_deflection_rad_at_peak_hip_torque": {
+    "1000": 0.221,
+    "3000": 0.074,
+    "10000": 0.022
+  },
+  "cad": "cad/hip_actuator_envelope.step"
+}
