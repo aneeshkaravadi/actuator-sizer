@@ -1,99 +1,65 @@
 # actuator-sizer
 
-**From a task to an actuator spec for a humanoid: MuJoCo inverse dynamics of a 25 kg tote lift, then gear-ratio trades, winding temperature, series elasticity, and a CAD envelope.**
-
 [![tests](https://github.com/aneeshkaravadi/actuator-sizer/actions/workflows/ci.yml/badge.svg)](https://github.com/aneeshkaravadi/actuator-sizer/actions/workflows/ci.yml)
 
-<img src="docs/figures/postures.png" width="80%">
+How big does a humanoid robot's hip motor need to be if its job is moving 25 kg totes all day? I couldn't find a straight answer anywhere, so I tried to work it out from the task backwards: simulate the lift, get the torque every joint needs, then pick motors and gear ratios and see what overheats.
 
-## What this shows
+<img src="docs/figures/postures.png" width="75%">
 
-The model is a human-scale sagittal-plane humanoid (1.73 m, 73 kg, segment data scaled from Winter's anthropometry). It lifts a 25 kg tote from a floor-level handle to waist height. MuJoCo's inverse dynamics gives every joint's torque, speed and power, and the centre of pressure under the feet decides whether the lift stays balanced.
+## The model
 
-| Per-side peak (25 kg tote) | ankle | knee | hip | shoulder | elbow |
-|---|---|---|---|---|---|
-| **stoop**, 1.52 s: torque (N m) | 87 | 119 | **221** | 67 | 45 |
-| stoop: power (W) | 26 | 27 | **395** | 69 | 16 |
-| **squat**, 3.92 s: torque (N m) | 33 | 81 | 103 | 65 | 45 |
-| squat: power (W) | 8 | 86 | 83 | 18 | 10 |
+It's a human-sized robot (1.73 m, 73 kg) in MuJoCo, simplified to a side view with both legs and both arms lumped together, since a two-handed lift is symmetric. Segment lengths and masses come from human anthropometry tables (Winter), which is roughly where human-scale humanoids end up anyway. The robot plans a pick posture and a finish posture with inverse kinematics, blends between them with a minimum-jerk profile, and MuJoCo's inverse dynamics tells me the torque at each joint at every instant. The feet are bolted down, so I check balance separately by tracking where the centre of pressure lands under the foot.
 
-### Finding 1: balance, not torque, sets how fast a squat lift can go
+The first sanity check I trusted: over a whole lift, the total work done by all the joints matches the gain in potential energy to within 1%.
 
-The fastest stoop lift that keeps the centre of pressure on the foot takes **1.47 s**. The squat lift needs **3.87 s**: rising quickly out of a deep squat throws the centre of pressure behind the heel.
+## What one lift needs
 
-The squat halves peak hip torque, but costs 2.6× the cycle time. For a robot, "lift with your legs" is a throughput trade, not a free win.
+Per side, for a stoop lift in 1.5 s, the hip is doing almost all the work: 221 N·m peak and almost 400 W. A squat lift cuts hip torque roughly in half, which is the "lift with your legs" advice working the way you'd expect.
 
-![Lift torques](docs/figures/lift_torques.png)
+![Joint torques](docs/figures/lift_torques.png)
 
-### Finding 2: gear ratio is a trade between heat, speed and impact, not a single optimum
+## Balance turned out to be the real limit
 
-For a slow, gravity-dominated lift, copper loss keeps falling as gear ratio rises. What caps the ratio is:
-- the speed a joint needs for fast motions (an explicit 6 rad/s hip requirement here)
-- the reflected rotor inertia $N^2 J$ that the joint carries into every collision
+This was the surprise. When I tried to speed up the squat lift, the centre of pressure ran off the back of the heel, because rising quickly out of a deep squat throws the body backwards. The fastest squat that stays balanced takes 3.9 s, against 1.5 s for the stoop. So for a robot with feet this size, lifting with your legs costs you 2.6 times the cycle time, which is a pretty big deal if the whole point is throughput.
+
+## Picking a gear ratio
+
+I expected to find an optimal gear ratio and got something else. For a slow lift that's mostly fighting gravity, motor heat keeps going down the higher you make the ratio, forever. What actually stops you is everything else a high ratio costs: the joint can't move fast anymore, and the motor's rotor inertia gets multiplied by N², which you feel in every collision. So the plot on the left is a trade space, not an answer, and the dotted lines are where a 6 rad/s speed requirement cuts you off.
 
 <img src="docs/figures/hip_ratio_trade.png" width="49%"> <img src="docs/figures/shuttle_thermal.png" width="49%">
 
-The right plot repeats a tote shuttle (120 totes/hour: lift, carry, lower, return). With the same mid-size motor at every joint, the winding passes 120 °C below these ratios:
+On the right, the same mid-size motor at every joint does 120 totes an hour (lift, carry, lower, walk back). The hip overheats first, below about 13:1, and the shoulder holding the tote out in front is next at about 10:1. That's interesting because the low ratios that make a robot backdrivable and safe around people (6 to 10:1) are right where these two joints run out of thermal margin.
 
-| hip | shoulder | knee | elbow | ankle |
-|---|---|---|---|---|
-| 12.7 | 10.1 | 8.5 | 7.1 | 6.3 |
+## Do series springs help?
 
-The hip and the shoulder (holding the tote out in front) cook first. Quasi-direct-drive ratios (6–10) need a bigger motor at those joints.
+I modelled the hip running into something stiff at 1 rad/s, with a spring between the gearbox and the leg. At a 120:1 ratio a 3000 N·m/rad spring cuts the shock on the gearbox from 470 to 98 N·m, but at 20:1 it actually makes it slightly worse, because there's not much rotor inertia to protect against in the first place. The cost of the spring is 0.074 rad of deflection at peak hip torque.
 
-### Finding 3: a series spring protects the gearbox, but only when reflected inertia is large
+<img src="docs/figures/sea_impact.png" width="55%">
 
-Here the hip hits a stiff obstacle at 1 rad/s.
+There's also a quick air-core vs iron-core motor comparison ([figure](docs/figures/aircore_vs_iron.png)) and a CAD envelope for the hip actuator: motor bay, gearbox bay and output flange ([STEP](cad/hip_actuator_envelope.step)).
 
-| Gear ratio | Gearbox torque spike, rigid | With a 3000 N m/rad spring |
-|---|---|---|
-| N = 120 | 470 N m | 98 N m |
-| N = 50 | 117 N m | 54 N m |
-| N = 20 | 18 N m | 21 N m |
+<!-- TODO(Aneesh): replace or add next to the generated envelope with your own SolidWorks model, e.g.
+<img src="docs/photos/hip_actuator_solidworks.png" width="60%">
+and put the native file in cad/solidworks/
+-->
 
-At N = 20 the spring slightly *raises* the spike, because the rotor is already light.
+## Things I got wrong first
 
-The price of the spring is deflection under load: 0.074 rad at 3000 N m/rad, at the hip's peak lift torque.
+- My first inverse dynamics run said the hip needed about 40,000 N·m. The body and the tote were sinking into the floor in the stoop posture and MuJoCo was adding contact forces. Turning contacts off (the feet are fixed anyway) fixed it.
+- My "squat" inverse kinematics kept quietly turning into a stoop, because it started from a standing pose and found the nearest answer. Seeding it from a squat posture fixed that.
+- Both lifts originally put the centre of pressure past the toes, until I made balance a much stronger term in the posture solver and moved the tote closer to the body.
+- My first thermal study used a 120:1 ratio everywhere and nothing came close to overheating, which told me nothing. Sweeping the ratio is what made it useful.
 
-<img src="docs/figures/sea_impact.png" width="60%">
-
-### Also included
-
-- **Air-core vs iron-core motors** (illustrative parameters): an iron core saturates at high current and has speed-dependent core loss, while an air core (e.g. a PCB axial-flux stator) is linear with no core loss. ([figure](docs/figures/aircore_vs_iron.png))
-- **CAD envelope** for the hip actuator (motor bay, gearbox bay, output flange bolt circle, mounting ears): [`cad/hip_actuator_envelope.step`](cad/hip_actuator_envelope.step).
-- **The MuJoCo model itself**: [`models/sagittal_humanoid.xml`](models/sagittal_humanoid.xml).
-
-## Checks
-
-10 tests in CI, including:
-- the shoulder torque with arms level matches a hand calculation to 1e-6
-- standing straight needs zero hip and knee torque
-- **total joint work over a lift equals the potential-energy gain within 1%**
-- the copper-loss-optimal ratio for a pure inertia matches $N^* = \sqrt{J_\text{load}/J_\text{rotor}}$
-- the rigid-impact spike matches its closed form
-- the transient winding model converges to the closed-form steady state
-
-## Quick start
+## Running it
 
 ```bash
-git clone https://github.com/aneeshkaravadi/actuator-sizer && cd actuator-sizer
 pip install -e ".[dev,cad]"
 pytest -q
 python examples/make_figures.py
 ```
 
-```python
-from actsizer import lift, actuator as A
-r = lift.simulate_lift("stoop", duration=1.6)          # MuJoCo inverse dynamics
-print(r.peak()["hip"], r.balanced())
-n, loss = A.best_ratio(A.MOTORS[1], r.tau[:, 2] / 2, r.qd[:, 2], 0 * r.qd[:, 2])
-```
+The motor parameters are illustrative values spread across a realistic range, not catalogue parts, so swap in a datasheet for a real design. The physics is written out in [DERIVATIONS.md](DERIVATIONS.md). Open questions and next steps are in [issues](https://github.com/aneeshkaravadi/actuator-sizer/issues).
 
-> [!NOTE]
-> The motor parameters are **illustrative** frameless-BLDC values spanning a realistic range of motor constant. Swap in datasheet values for a real design. Torques are for the lumped symmetric model, so divide by 2 per side (the tables above already do).
+---
 
-Derivations are in [DERIVATIONS.md](DERIVATIONS.md).
-
-## About
-
-Built by **Aneesh Karavadi**, an engineering student at the University of North Texas (TAMS), with CAD in SolidWorks, Fusion 360 and Onshape and a background in competition physics. I used **Claude Code** as a pair programmer. The modelling choices and conclusions are mine to defend.
+Aneesh Karavadi, engineering at UNT (TAMS). I do most of my CAD in SolidWorks, Fusion and Onshape. I used Claude Code to write a lot of the implementation, but the questions, the checks and the conclusions are mine.
