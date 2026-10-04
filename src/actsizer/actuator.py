@@ -6,7 +6,7 @@ For a real design, swap in datasheet numbers; every function takes a Motor.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 import numpy as np
 from scipy.integrate import solve_ivp

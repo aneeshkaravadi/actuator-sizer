@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/aneeshkaravadi/actuator-sizer/actions/workflows/ci.yml/badge.svg)](https://github.com/aneeshkaravadi/actuator-sizer/actions/workflows/ci.yml)
 
-How big does a humanoid robot's hip motor need to be if its job is moving 25 kg totes all day? I couldn't find a straight answer anywhere, so I tried to work it out from the task backwards: simulate the lift, get the torque every joint needs, then pick motors and gear ratios and see what overheats.
+How big does a humanoid robot's hip motor need to be if its job is moving 25 kg totes all day? This repo works it out from the task backwards: simulate the lift, get the torque every joint needs, then pick motors and gear ratios and see what overheats.
 
 <img src="docs/figures/postures.png" width="75%">
 
