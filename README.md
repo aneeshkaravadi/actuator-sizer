@@ -38,6 +38,10 @@ With real motors the shuttle sets a minimum ratio at the hip, from heat, and the
 
 Two details came out of the datasheets. maxon gives two thermal resistances and two time constants instead of one, so the winding temperature model now has two nodes: the winding heats up in under a minute and a half, the housing over several minutes. And the listed stall torque is far below the torque constant times the stall current, because the iron saturates, so I cap the current at the listed stall torque. The tests cross-check the datasheet numbers against each other (torque constant against speed constant, stall current against V/R), which would catch a typo.
 
+I also checked whether averaging the heat over each cycle was hiding anything. Run through hours of real 30 s cycles, the hip's winding swings 14 K within each one. The hottest moment isn't the lift but the lowering, because the loaded carry keeps the winding warm right before it. The peak sits about 6 K above the cycle's average, which nudges the hip's limit from 42.5 to 43:1. So the averaged analysis is close here, since the winding's own time constant (54 s) is longer than the cycle, but it isn't conservative.
+
+<img src="docs/figures/hip_winding_cycle.png" width="60%">
+
 ## What the gearbox costs
 
 I first used a constant 90% gearbox efficiency. A real planetary gearbox adds a stage for every 10:1 or so, and each stage costs a few percent, so I made efficiency step down with the number of stages (0.97 per stage, an assumption) and counted the gearbox's own friction heat too. The winding heat keeps falling with ratio, but the gearbox's share keeps growing, and past about 140:1 the gearbox makes most of the heat. Each extra stage also costs a step: the total goes from 45.6 W at 100:1 to 52.9 W just past it, once a third stage is needed.

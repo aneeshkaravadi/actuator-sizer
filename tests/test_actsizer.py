@@ -191,3 +191,15 @@ def test_two_node_winding_first_heats_like_its_own_small_mass():
     T = A.winding_temperature(mot, np.full(40, 50.0), dt=0.05)  # 2 s, far below its 37.8 s time constant
     rate = 50.0 * (1 + 0.00393 * (30.0 - 25.0)) / mot.c_winding
     assert (T[-1] - 30.0) / 2.0 == pytest.approx(rate, rel=0.05)
+
+
+def test_two_node_winding_under_a_repeating_load_averages_to_the_steady_value():
+    """A 30 s cycle (60 W for 3 s, 10 W for the rest): the winding ripples, but its mean over a cycle
+    settles near the closed-form temperature for the average loss (the copper's temperature
+    coefficient makes it slightly nonlinear)."""
+    mot = A.MOTORS[1]
+    dt = 0.05
+    cycle = np.r_[np.full(60, 60.0), np.full(540, 10.0)]
+    T = A.winding_temperature(mot, np.tile(cycle, 300), dt)[-len(cycle):]
+    assert T.mean() == pytest.approx(A.steady_winding_temperature(mot, float(cycle.mean())), abs=1.0)
+    assert T.max() - T.min() > 1.0  # it really does ripple

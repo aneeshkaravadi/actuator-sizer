@@ -184,6 +184,13 @@
       "elbow": 12.0
     }
   },
+  "hip_thermal_ripple": {
+    "motor": "maxon EC frameless HT 76 M",
+    "limit_from_average": 42.5,
+    "limit_from_peak": 43.0,
+    "swing_K_at_peak_limit": 14.0,
+    "peak_above_cycle_mean_K": 6.4
+  },
   "sea_impact": {
     "N20": {
       "rigid_Nm": 7,

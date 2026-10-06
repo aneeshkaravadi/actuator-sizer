@@ -250,6 +250,55 @@ for motor in A.MOTORS:
         row[j] = round(float(ratios[ok[0]]), 1) if len(ok) else None
     results["min_ratio_for_120_totes_per_hour_by_motor"][f"{motor.name} ({motor.mass * 1000:.0f} g)"] = row
 
+# ------------------------------------------------------------------ 3b. the winding's ripple within each cycle
+# The steady analysis above uses each cycle's average loss. With the two-node model the winding (time
+# constant under a minute) swings within every 30 s cycle, so check the peak against the limit too.
+DT_TH = 0.05
+hip_i = J.index("hip")
+
+
+def cycle_loss(ratio, j_idx=hip_i, rate=RATE):
+    dr = A.Drive(mot, ratio, gearbox=A.PLANETARY)
+    tau_j, qd_j, qdd_j = r.tau[:, j_idx] / 2, r.qd[:, j_idx], qdd[:, j_idx]
+    t_move = np.arange(0.0, lift_T, DT_TH)
+    n_walk = int(round(max(3600.0 / rate - 2 * lift_T, 0.0) / 2 / DT_TH))
+    return np.concatenate([np.interp(t_move, r.t, dr.copper_loss(tau_j, qdd_j, qd_j)),  # lift
+                           np.full(n_walk, float(dr.copper_loss(hold_tau[j_idx]))),  # carry
+                           np.interp(t_move, r.t, dr.copper_loss(tau_j, qdd_j, -qd_j)),  # lower
+                           np.full(n_walk, float(dr.copper_loss(empty_tau[j_idx])))])  # walk back
+
+
+def last_cycle(ratio, cycles=300):
+    p_cycle = cycle_loss(ratio)
+    return A.winding_temperature(mot, np.tile(p_cycle, cycles), DT_TH)[-len(p_cycle):]
+
+
+lo, hi = 20.0, 120.0  # hip ratio where the PEAK winding temperature reaches the limit
+for _ in range(30):
+    mid = 0.5 * (lo + hi)
+    lo, hi = (mid, hi) if last_cycle(mid).max() > mot.t_winding_max else (lo, mid)
+peak_limit = hi
+avg_limit = results["min_ratio_for_120_totes_per_hour"]["hip"]
+trace = last_cycle(peak_limit)
+results["hip_thermal_ripple"] = {"motor": mot.name, "limit_from_average": avg_limit, "limit_from_peak": round(peak_limit, 1),
+                                 "swing_K_at_peak_limit": round(float(trace.max() - trace.min()), 1),
+                                 "peak_above_cycle_mean_K": round(float(trace.max() - trace.mean()), 1)}
+fig, ax = plt.subplots(figsize=(7, 3.6))
+tt = np.arange(len(trace)) * DT_TH
+ax.plot(tt, trace, color="C2")
+ax.axhline(mot.t_winding_max, color="k", ls=":", lw=1)
+ax.axhline(trace.mean(), color="C2", ls="--", lw=1, label=f"cycle mean {trace.mean():.0f} C")
+phases = ((0.0, "lift"), (lift_T, "carry"), (3600.0 / RATE / 2, "lower"), (3600.0 / RATE / 2 + lift_T, "walk back"))
+for k, (start, label) in enumerate(phases):
+    ax.axvline(start, color="gray", lw=0.6)
+    ax.text(start + 0.3, trace.min() + (0.5 if k % 2 == 0 else 2.0), label, fontsize=7, color="gray")
+ax.set_xlabel("time within one 30 s cycle (s)")
+ax.set_ylabel("hip winding temperature (C)")
+ax.set_title(f"{mot.name}, hip at {peak_limit:.1f}:1 after hours of shuttling: the winding swings "
+             f"{trace.max() - trace.min():.0f} K\nwithin every cycle, so its peak sets the limit, not its average", fontsize=9)
+ax.legend(fontsize=8, loc="upper right")
+save(fig, "hip_winding_cycle.png")
+
 # ------------------------------------------------------------------ 4. series elastic actuator: impact
 j_link = 1.5  # kg m^2, rough trunk + arms about the hip
 K_ENV = 2e5  # N m/rad: a stiff obstacle (rigid shelf, floor)

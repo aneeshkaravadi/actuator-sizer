@@ -80,6 +80,8 @@ $$C_w\dot T_w = P\,[1 + \alpha(T_w - 25)] - \frac{T_w - T_h}{R_{wh}}, \qquad C_h
 
 In steady state the two resistances are just in series, so the closed form above holds with $R_{th} = R_{wh} + R_{ha}$. In the first seconds the winding barely feels the housing and heats at about $P/C_w$, which is much faster than the one-node model says (both checked in `tests/test_actsizer.py`).
 
+**Within a cycle.** The shuttle analysis uses each cycle's average loss. Running the two-node model through the actual 30 s cycle (lift, loaded carry, lower, empty walk back) shows the hip winding swinging 14 K, with its peak 6 K above the cycle mean. The mean itself matches the steady value for the average loss within a degree (`test_two_node_winding_under_a_repeating_load_averages_to_the_steady_value`), so the peak-based limit only moves from 42.5 to 43:1.
+
 **Datasheet values.** The tests check them against each other: $K_t = 60/(2\pi K_v)$ in SI, the no-load speed just under $K_v V$, and the stall current equal to $V/R$. The listed stall torque is far below $K_t I_\text{stall}$, because the iron saturates, so the current is capped at $\tau_\text{stall}/K_t$ instead of $I_\text{stall}$.
 
 ## 6. Series elastic actuator impact
