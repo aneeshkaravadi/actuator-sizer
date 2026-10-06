@@ -203,3 +203,38 @@ def test_two_node_winding_under_a_repeating_load_averages_to_the_steady_value():
     T = A.winding_temperature(mot, np.tile(cycle, 300), dt)[-len(cycle):]
     assert T.mean() == pytest.approx(A.steady_winding_temperature(mot, float(cycle.mean())), abs=1.0)
     assert T.max() - T.min() > 1.0  # it really does ripple
+
+
+# ---------------------------------------------------------------- one-handed and twisting lifts
+
+def test_one_handed_static_moments_match_hand_calculations():
+    """Arms hang (or the loaded one hangs plumb), so the arms' own weights cancel side to side and only
+    the tote is off center: tote weight times the shoulder offset, as hip roll standing up and as
+    trunk twist when bent 90 degrees forward (the trunk's axis is then horizontal)."""
+    from actsizer import asym
+    b = model.Body()
+    m, d = asym.load_asym(b)
+    expected = b.tote_mass * G * asym.SHOULDER_Y
+    names = asym.JOINTS_ASYM
+    d.qpos[:], d.qvel[:], d.qacc[:] = 0.0, 0.0, 0.0
+    mujoco.mj_inverse(m, d)
+    assert abs(d.qfrc_inverse[names.index("hip_roll")]) == pytest.approx(expected, rel=1e-6)
+    q = np.zeros(7)
+    q[names.index("hip")], q[names.index("shoulder")] = np.pi / 2, -np.pi / 2  # bent over, arm plumb
+    d.qpos[:] = q
+    mujoco.mj_inverse(m, d)
+    assert abs(d.qfrc_inverse[names.index("trunk_yaw")]) == pytest.approx(expected, rel=1e-6)
+
+
+def test_twisting_lift_work_equals_potential_energy_gain():
+    from actsizer import asym
+    r = asym.simulate_asym_lift((0.10, 0.38, 0.30), (0.30, 0.20, 0.95), duration=3.0, n=1201)
+    m, d = asym.load_asym()
+
+    def pe(q):
+        d.qpos[:] = q
+        mujoco.mj_kinematics(m, d)
+        return float((m.body_mass[1:] * d.xipos[1:, 2]).sum() * G)
+
+    work = np.trapezoid((r.tau * r.qd).sum(axis=1), r.t)
+    assert work == pytest.approx(pe(r.q[-1]) - pe(r.q[0]), rel=0.01)
