@@ -4,6 +4,7 @@ import pytest
 
 from actsizer import actuator as A
 from actsizer import lift, model
+from actsizer import recovery as R
 
 G = 9.81
 
@@ -127,3 +128,40 @@ def test_air_core_is_linear_and_iron_core_saturates():
     air, iron = A.AIR_CORE.torque(i), A.IRON_CORE.torque(i)
     assert air[1] / air[0] == pytest.approx(10.0)
     assert iron[1] / iron[0] < 8.0
+
+
+# ---------------------------------------------------------------- push recovery
+
+def test_pendulum_closed_form_matches_integration():
+    from scipy.integrate import solve_ivp
+    pend = R.Pendulum(z0=1.0, leg=0.9)
+    sol = solve_ivp(lambda t, y: [y[1], pend.w**2 * (y[0] - 0.19)], (0, 0.6), [0.0, 0.8], rtol=1e-11, atol=1e-12,
+                    dense_output=True)
+    t = np.linspace(0, 0.6, 7)
+    x, v = pend.com(0.8, t, 0.19)
+    assert x == pytest.approx(sol.sol(t)[0], abs=1e-8) and v == pytest.approx(sol.sol(t)[1], abs=1e-8)
+
+
+def test_center_of_pressure_on_the_capture_point_brings_the_robot_to_rest():
+    pend = R.Pendulum(z0=1.0, leg=0.9)
+    xi = pend.capture_point(0.0, 0.8)
+    x, v = pend.com(0.8, 5.0, xi)
+    assert x == pytest.approx(xi, abs=1e-6) and v == pytest.approx(0.0, abs=1e-6)
+    x_short, _ = pend.com(0.8, 5.0, xi - 0.01)  # a centimeter short and it runs away
+    assert x_short - xi > 1.0
+
+
+def test_small_pushes_need_no_step_and_bigger_pushes_or_shorter_steps_need_a_faster_hip():
+    pend = R.pendulum_from_model()
+    assert R.required_hip_speed(pend, 0.4)[0] == 0.0  # the ankles can stop this one
+    speeds = [R.required_hip_speed(pend, v)[0] for v in (0.8, 1.0, 1.2, 1.4)]
+    assert np.all(np.diff(speeds) > 0)
+    capped = [R.required_hip_speed(pend, 1.25, cap)[0] for cap in (np.inf, 0.8, 0.6, 0.5)]
+    assert np.all(np.diff(capped) >= 0)
+    assert R.required_hip_speed(pend, 1.5, max_step=0.4)[0] == np.inf
+
+
+def test_min_jerk_peak_speed_is_fifteen_eighths_of_the_average():
+    t = np.linspace(0, 1, 100001)
+    _, qd, _ = lift.min_jerk(np.zeros(1), np.ones(1), 1.0, t)
+    assert qd.max() == pytest.approx(R.MIN_JERK_PEAK, rel=1e-6)
