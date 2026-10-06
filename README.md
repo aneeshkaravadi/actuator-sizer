@@ -60,6 +60,14 @@ So the hip speed you need depends as much on how far the robot is allowed to ste
 
 <img src="docs/figures/push_recovery.png" width="60%">
 
+## One hand, and a twist
+
+Everything above is a symmetric two-handed lift. To see what changes with one hand, I added hip roll and trunk twist joints and gave the tote to one arm, at the shoulder's sideways offset. The legs are still lumped together. Picking the same 25 kg tote with one hand roughly doubles what the loaded arm needs: 125 N·m at the shoulder instead of 67, and 89 at the elbow instead of 45.
+
+It also adds loads the two-handed model doesn't have at all. Stooped over, the trunk's long axis is nearly horizontal, so a weight off to one side twists the spine (63 N·m) even in a straight-ahead pick, and the hips have to keep it from tipping sideways (55 N·m, both hips together). Picking the tote from out to the side, with 44° of twist, about doubles both of those, to 125 N·m of twist and 109 N·m of hip roll. That's more than half of what the hip needs in pitch, so a robot that sometimes lifts one-handed needs a real waist actuator, not just a passive joint.
+
+<img src="docs/figures/asymmetric_lifts.png" width="95%">
+
 ## Do series springs help?
 
 I modeled the hip running into something stiff at 1 rad/s, with a spring between the gearbox and the leg. At a 120:1 ratio a 3000 N·m/rad spring cuts the shock on the gearbox from 218 to 74 N·m, but at 20:1 it actually makes it worse (11 against 7 N·m), because there's not much rotor inertia to protect against in the first place. The cost of the spring is 0.074 rad of deflection at peak hip torque.

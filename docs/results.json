@@ -191,6 +191,30 @@
     "swing_K_at_peak_limit": 14.0,
     "peak_above_cycle_mean_K": 6.4
   },
+  "asymmetric_lifts_peak_Nm": {
+    "two-handed": {
+      "hip pitch": 220.7,
+      "hip roll": 0.0,
+      "trunk twist": 0.0,
+      "shoulder": 67.0,
+      "elbow": 45.0
+    },
+    "one-handed": {
+      "hip pitch": 206.6,
+      "hip roll": 55.3,
+      "trunk twist": 62.6,
+      "shoulder": 125.0,
+      "elbow": 88.5
+    },
+    "one-handed, from the side": {
+      "hip pitch": 122.9,
+      "hip roll": 109.2,
+      "trunk twist": 124.7,
+      "shoulder": 122.4,
+      "elbow": 88.5
+    }
+  },
+  "asymmetric_lifts_note": "hip roll and trunk twist are both sides together; the rest per actuator",
   "sea_impact": {
     "N20": {
       "rigid_Nm": 7,

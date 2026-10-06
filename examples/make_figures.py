@@ -12,7 +12,7 @@ import mujoco
 import numpy as np
 
 from actsizer import actuator as A
-from actsizer import lift, model
+from actsizer import asym, lift, model
 from actsizer import recovery as R
 from actsizer.cad import actuator_housing
 
@@ -261,7 +261,7 @@ def cycle_loss(ratio, j_idx=hip_i, rate=RATE):
     dr = A.Drive(mot, ratio, gearbox=A.PLANETARY)
     tau_j, qd_j, qdd_j = r.tau[:, j_idx] / 2, r.qd[:, j_idx], qdd[:, j_idx]
     t_move = np.arange(0.0, lift_T, DT_TH)
-    n_walk = int(round(max(3600.0 / rate - 2 * lift_T, 0.0) / 2 / DT_TH))
+    n_walk = round(max(3600.0 / rate - 2 * lift_T, 0.0) / 2 / DT_TH)
     return np.concatenate([np.interp(t_move, r.t, dr.copper_loss(tau_j, qdd_j, qd_j)),  # lift
                            np.full(n_walk, float(dr.copper_loss(hold_tau[j_idx]))),  # carry
                            np.interp(t_move, r.t, dr.copper_loss(tau_j, qdd_j, -qd_j)),  # lower
@@ -298,6 +298,42 @@ ax.set_title(f"{mot.name}, hip at {peak_limit:.1f}:1 after hours of shuttling: t
              f"{trace.max() - trace.min():.0f} K\nwithin every cycle, so its peak sets the limit, not its average", fontsize=9)
 ax.legend(fontsize=8, loc="upper right")
 save(fig, "hip_winding_cycle.png")
+
+# ------------------------------------------------------------------ 3c. one-handed and twisting lifts
+T_LIFT = round(results["fastest_balanced_lift_s"]["stoop"] + 0.05, 2)
+two = lifts["stoop"]
+one = asym.simulate_asym_lift((0.35, asym.SHOULDER_Y, 0.25), (0.30, asym.SHOULDER_Y, 0.95), duration=T_LIFT)
+twist = asym.simulate_asym_lift((0.10, 0.38, 0.30), (0.30, asym.SHOULDER_Y, 0.95), duration=T_LIFT)
+two_pk = {j: float(np.abs(two.tau[:, i]).max()) for i, j in enumerate(J)}
+per_actuator = {  # per actuator: legs and hip pitch shared by two sides, the loaded arm alone
+    "two-handed": {"hip pitch": two_pk["hip"] / 2, "hip roll": 0.0, "trunk twist": 0.0,
+                   "shoulder": two_pk["shoulder"] / 2, "elbow": two_pk["elbow"] / 2},
+}
+for name, lf in (("one-handed", one), ("one-handed, from the side", twist)):
+    pk = lf.peak()
+    per_actuator[name] = {"hip pitch": pk["hip"] / 2, "hip roll": pk["hip_roll"], "trunk twist": pk["trunk_yaw"],
+                          "shoulder": pk["shoulder"], "elbow": pk["elbow"]}
+results["asymmetric_lifts_peak_Nm"] = {k: {j: round(v, 1) for j, v in row.items()} for k, row in per_actuator.items()}
+results["asymmetric_lifts_note"] = "hip roll and trunk twist are both sides together; the rest per actuator"
+fig, axes = plt.subplots(1, 2, figsize=(11, 3.8))
+jn = list(per_actuator["two-handed"])
+xx = np.arange(len(jn))
+for k, (name, row) in enumerate(per_actuator.items()):
+    axes[0].bar(xx + (k - 1) * 0.27, [row[j] for j in jn], 0.27, label=name)
+axes[0].set_xticks(xx, jn, fontsize=8)
+axes[0].set_ylabel("peak torque (N m)")
+axes[0].set_title("25 kg tote, same pick and place heights", fontsize=9)
+axes[0].legend(fontsize=8)
+axes[0].grid(axis="y", alpha=0.3)
+for j, c in (("hip_roll", "C1"), ("trunk_yaw", "C2"), ("shoulder", "C0")):
+    i = asym.JOINTS_ASYM.index(j)
+    axes[1].plot(twist.t, twist.tau[:, i], color=c, label=j.replace("_", " ").replace("yaw", "twist"))
+axes[1].set_xlabel("time (s)")
+axes[1].set_ylabel("joint torque (N m)")
+axes[1].set_title("one-handed, picked from the side (44 deg of trunk twist)", fontsize=9)
+axes[1].legend(fontsize=8)
+fig.suptitle("Lifting with one hand doubles the loaded arm's torque and adds sideways and twisting loads", fontsize=10)
+save(fig, "asymmetric_lifts.png")
 
 # ------------------------------------------------------------------ 4. series elastic actuator: impact
 j_link = 1.5  # kg m^2, rough trunk + arms about the hip

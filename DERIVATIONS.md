@@ -116,9 +116,15 @@ $z_0 = 1.02$ m and the hip height (the swing leg's length, 0.93 m) come from the
 
 **Checks:** the closed form against numerical integration. The center of pressure on the capture point brings the robot to rest, and 1 cm short it runs away. The required speed rises with the push and as the allowed stride shrinks. The minimum-jerk peak is 15/8 of the average (`tests/test_actsizer.py`).
 
+## 8. One-handed and twisting lifts (`asym.py`)
+
+The legs stay lumped, but three hinges at the hip let the trunk lean sideways (roll, about $x$), bend forward (pitch, about $y$) and twist (yaw, about its own long axis, since the yaw joint comes after the pitch). One arm, at the shoulder's sideways offset $y_s = 0.20$ m, has a shoulder and an elbow and carries the tote. The other hangs at $-y_s$ with no joints. The IK reaches a 3D grip point and keeps the center of mass over the middle of the feet fore and aft. Sideways the feet are apart, so it only pushes back once the center of mass is more than 8 cm off center.
+
+**Checks.** With the arms hanging, their weights cancel side to side, so standing straight the hip roll joint carries only the tote's moment, $m_\text{tote}\, g\, y_s$ = 49.05 N·m. Bent 90° forward with the loaded arm plumb, the trunk's twist axis is horizontal and the same moment becomes a twisting torque. Both match MuJoCo's inverse dynamics to $10^{-6}$ (`test_one_handed_static_moments_match_hand_calculations`). Over a slow twisting lift, the joint work equals the potential energy gained (`test_twisting_lift_work_equals_potential_energy_gain`).
+
 ## Limitations
 
-- Sagittal plane only, with left and right sides lumped and the feet bolted down.
+- The main model is sagittal, with left and right sides lumped and the feet bolted down. The one-handed model adds hip roll and trunk twist but still lumps the legs, so it can't split the hip roll between the two hips.
 - Contact forces with the tote and floor are not resolved.
 - Gearbox efficiency comes from a stage count with assumed per-stage values and pure Coulomb friction, with no speed- or load-dependent losses. Backlash is reported but not fed into the dynamics.
 - The motors are maxon frameless kits, but their thermal resistance to ambient is for maxon's reference mounting, and a real joint housing would differ.
