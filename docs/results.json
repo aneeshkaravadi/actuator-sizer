@@ -69,21 +69,56 @@
       }
     }
   },
+  "push_recovery": {
+    "com_height_m": 1.015,
+    "hip_height_m": 0.929,
+    "largest_push_ankles_alone_m_s": 0.59,
+    "by_step_cap": {
+      "step at most 0.5 m": {
+        "1.00": 1.32,
+        "1.25": 3.38,
+        "1.50": Infinity
+      },
+      "step at most 0.6 m": {
+        "1.00": 1.23,
+        "1.25": 2.48,
+        "1.50": 5.24
+      },
+      "step at most 0.8 m": {
+        "1.00": 1.23,
+        "1.25": 2.07,
+        "1.50": 3.31
+      },
+      "any step the leg can reach": {
+        "1.00": 1.23,
+        "1.25": 2.05,
+        "1.50": 2.93
+      }
+    },
+    "design_case": {
+      "push_m_s": 1.5,
+      "max_step_m": 0.6,
+      "impulse_Ns": 106,
+      "hip_speed_rad_s": 5.24,
+      "swing_s": 0.152,
+      "step_m": 0.6
+    }
+  },
   "hip_ratio_trade": {
     "illustrative frameless S": {
-      "ratio": 78.8,
-      "mean_copper_W": 76.4,
-      "reflected_inertia_kgm2": 0.124
+      "ratio": 91.0,
+      "mean_copper_W": 57.33,
+      "reflected_inertia_kgm2": 0.165
     },
     "illustrative frameless M": {
-      "ratio": 53.3,
-      "mean_copper_W": 25.16,
-      "reflected_inertia_kgm2": 0.341
+      "ratio": 60.3,
+      "mean_copper_W": 19.7,
+      "reflected_inertia_kgm2": 0.436
     },
     "illustrative frameless L": {
-      "ratio": 36.8,
-      "mean_copper_W": 11.56,
-      "reflected_inertia_kgm2": 0.609
+      "ratio": 42.5,
+      "mean_copper_W": 8.7,
+      "reflected_inertia_kgm2": 0.812
     }
   },
   "gearbox": {

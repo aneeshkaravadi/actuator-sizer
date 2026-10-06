@@ -24,11 +24,19 @@ This was the surprise. When I tried to speed up the squat lift, the center of pr
 
 ## Picking a gear ratio
 
-I expected to find an optimal gear ratio and got something else. For a slow lift that's mostly fighting gravity, motor heat keeps going down the higher you make the ratio, forever. What actually stops you is everything else a high ratio costs: the joint can't move fast anymore, and the motor's rotor inertia gets multiplied by N², which you feel in every collision. So the plot on the left is a trade space, not an answer, and the dotted lines are where a 6 rad/s speed requirement cuts you off.
+I expected to find an optimal gear ratio and got something else. For a slow lift that's mostly fighting gravity, motor heat keeps going down the higher you make the ratio, forever. What actually stops you is everything else a high ratio costs: the joint can't move fast anymore, and the motor's rotor inertia gets multiplied by N², which you feel in every collision. So the plot on the left is a trade space, not an answer, and the dotted lines are where the hip gets too slow to catch the robot after a hard shove (next section).
 
 <img src="docs/figures/hip_ratio_trade.png" width="49%"> <img src="docs/figures/shuttle_thermal.png" width="49%">
 
 On the right, the same mid-size motor at every joint does 120 totes an hour (lift, carry, lower, walk back). The hip overheats first, below about 12:1, and the shoulder holding the tote out in front is next at about 9.5:1. That's interesting because the low ratios that make a robot backdrivable and safe around people (6 to 10:1) are right where these two joints run out of thermal margin.
+
+## How fast does the hip need to be?
+
+The gear-ratio trade needs a top speed for the hip, and at first I just assumed 6 rad/s. To get it from an actual task instead, I looked at about the fastest thing a hip has to do, which is catching the robot with one step after a shove. I treated the robot as an inverted pendulum, with its center of mass at 1.02 m, taken from the MuJoCo model. A push that leaves the center of mass moving slower than 0.59 m/s can be stopped by the ankles alone. Anything harder needs a step, and the foot has to land where the robot's capture point has got to by then, which runs away exponentially. A slow step needs a long stride, and a short stride needs a fast step.
+
+So the hip speed you need depends as much on how far the robot is allowed to step as on the push. With unlimited stride, a 1.5 m/s shove needs only 2.9 rad/s at the hip. With the step capped at 0.6 m it needs 5.2 rad/s, landing 0.15 s after the push, and at 0.5 m it can't be done at all. I used that 5.2 rad/s case for the dotted lines above. It came out close to my guess, but now it comes from a push and a stride length you can argue about. It also assumes the robot reacts instantly, so a real one needs more.
+
+<img src="docs/figures/push_recovery.png" width="60%">
 
 ## Do series springs help?
 

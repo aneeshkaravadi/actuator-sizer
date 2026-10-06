@@ -90,6 +90,22 @@ $$\tau_\text{gear} = \omega_0\, N^2J_m\sqrt{\frac{k_e}{J_L + N^2J_m}}$$
 
 **Cost of the spring.** It deflects $\tau/k$ under load, which costs position accuracy and lowers the frequency of the rotor–spring resonance, $\sqrt{k/N^2J_m}$.
 
+## 7. Push recovery and the hip speed (`recovery.py`)
+
+**Linear inverted pendulum** (Kajita et al. 2001). With the center of mass held at height $z_0$ and the center of pressure at $p$:
+
+$$\ddot x = \omega^2 (x - p), \qquad \omega = \sqrt{g/z_0}$$
+
+$$x(t) = p + (x_0 - p)\cosh\omega t + \frac{\dot x_0}{\omega}\sinh\omega t$$
+
+$z_0 = 1.02$ m and the hip height (the swing leg's length, 0.93 m) come from the MuJoCo model standing straight.
+
+**Capture point** (Pratt et al. 2006). $\xi = x + \dot x/\omega$ obeys $\dot\xi = \omega(\xi - p)$, so with $p$ fixed it runs away exponentially. If the center of pressure sits exactly on $\xi$, the robot comes to rest over it. Starting over the ankle, the ankles alone can stop a push if $\xi_0 = \dot x_0/\omega$ is still inside the foot, so $\dot x_0 \le \omega\, x_\text{toe} = 0.59$ m/s.
+
+**One step.** Harder pushes need a step. Until touchdown at time $T$ the center of pressure stays at the toe, and the new foot goes where $\xi(T)$ lands mid-foot. With the hip above the center of mass, the swing leg reaches touchdown at angle $\theta = \arcsin\big((x_\text{foot} - x(T))/L\big)$, and it isn't reachable at all if that argument passes 1. A minimum-jerk swing peaks at 15/8 of its average speed, so the hip needs $\dot\theta_\text{max} = \tfrac{15}{8}\,\theta/T$. Short swings need fast hips and long swings need long strides, so for a given push and maximum stride the code searches $T$ for the slowest hip that works (`required_hip_speed`).
+
+**Checks:** the closed form against numerical integration. The center of pressure on the capture point brings the robot to rest, and 1 cm short it runs away. The required speed rises with the push and as the allowed stride shrinks. The minimum-jerk peak is 15/8 of the average (`tests/test_actsizer.py`).
+
 ## Limitations
 
 - Sagittal plane only, with left and right sides lumped and the feet bolted down.
@@ -97,3 +113,4 @@ $$\tau_\text{gear} = \omega_0\, N^2J_m\sqrt{\frac{k_e}{J_L + N^2J_m}}$$
 - Gearbox efficiency comes from a stage count with assumed per-stage values and pure Coulomb friction, with no speed- or load-dependent losses. Backlash is reported but not fed into the dynamics.
 - The motors are illustrative, not catalogue parts.
 - The CoP uses a quasi-static vertical load.
+- Push recovery uses a point-mass pendulum at constant height, with no reaction delay and no swing-leg dynamics, so its speeds are a lower bound.

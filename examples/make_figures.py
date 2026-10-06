@@ -13,6 +13,7 @@ import numpy as np
 
 from actsizer import actuator as A
 from actsizer import lift, model
+from actsizer import recovery as R
 from actsizer.cad import actuator_housing
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -80,12 +81,41 @@ for ax, (s, r) in zip(axes, lifts.items()):
     ax.legend(fontsize=7, loc="upper left")
 save(fig, "postures.png")
 
+# ------------------------------------------------------------------ 1b. where the hip speed requirement comes from
+pend = R.pendulum_from_model()
+DESIGN_PUSH, DESIGN_STEP = 1.5, 0.6  # m/s of center-of-mass speed from the push; longest recovery step (m)
+pushes = np.linspace(0.3, 1.8, 61)
+fig, ax = plt.subplots(figsize=(6.8, 4.2))
+results["push_recovery"] = {"com_height_m": round(pend.z0, 3), "hip_height_m": round(pend.leg, 3),
+                            "largest_push_ankles_alone_m_s": round(pend.toe * pend.w, 2), "by_step_cap": {}}
+for cap, c in ((0.5, "C3"), (0.6, "C1"), (0.8, "C2"), (np.inf, "C0")):
+    sp = np.array([R.required_hip_speed(pend, v, cap)[0] for v in pushes])
+    label = "any step the leg can reach" if np.isinf(cap) else f"step at most {cap:.1f} m"
+    ax.plot(pushes, np.where(np.isfinite(sp), sp, np.nan), color=c, label=label)
+    results["push_recovery"]["by_step_cap"][label] = {f"{v:.2f}": round(float(R.required_hip_speed(pend, v, cap)[0]), 2)
+                                                      for v in (1.0, 1.25, 1.5)}
+SPEED_FLOOR, t_swing, step_len = R.required_hip_speed(pend, DESIGN_PUSH, DESIGN_STEP)
+results["push_recovery"]["design_case"] = {"push_m_s": DESIGN_PUSH, "max_step_m": DESIGN_STEP,
+                                           "impulse_Ns": round(DESIGN_PUSH * float(model.load(model.Body(tote_mass=0.0))[0].body_mass[1:].sum())),
+                                           "hip_speed_rad_s": round(SPEED_FLOOR, 2), "swing_s": round(t_swing, 3),
+                                           "step_m": round(step_len, 3)}
+ax.axvline(pend.toe * pend.w, color="k", ls=":", lw=1)
+ax.text(pend.toe * pend.w + 0.02, 0.3, "ankles alone\ncan stop it", fontsize=8)
+ax.plot(DESIGN_PUSH, SPEED_FLOOR, "ko")
+ax.annotate(f"design case: {SPEED_FLOOR:.1f} rad/s", (DESIGN_PUSH, SPEED_FLOOR), xytext=(0.75, 6.2), fontsize=8,
+            arrowprops={"arrowstyle": "->", "lw": 0.8})
+ax.set_ylim(0, 8)
+ax.set_xlabel("center-of-mass speed right after the push (m/s)")
+ax.set_ylabel("hip speed needed for one recovery step (rad/s)")
+ax.set_title("One-step push recovery (linear inverted pendulum, capture point):\nthe shorter the step has to be, the faster the hip", fontsize=9)
+ax.legend(fontsize=8, loc="upper left")
+save(fig, "push_recovery.png")
+
 # ------------------------------------------------------------------ 2. gear-ratio trade at the hip
 r = lifts["stoop"]
 qdd = np.gradient(r.qd, r.t, axis=0)
 hip = J.index("hip")
 tau_h, qd_h, qdd_h = r.tau[:, hip] / 2, r.qd[:, hip], qdd[:, hip]
-SPEED_FLOOR = 6.0  # rad/s at the hip for fast motions (step recovery, walking); an explicit assumption
 fig, ax = plt.subplots(figsize=(7, 4.3))
 ax2 = ax.twinx()
 results["hip_ratio_trade"] = {}
@@ -109,7 +139,8 @@ ax.set_xlabel("gear ratio N")
 ax.set_ylabel("mean copper loss during lift (W, solid)")
 ax2.set_ylabel("reflected rotor inertia N^2 J (kg m^2, dashed)")
 ax2.set_yscale("log")
-ax.set_title("Hip, one side, planetary gearbox: higher N cuts heat but stiffens and slows the joint\n(dotted = speed limit for a 6 rad/s requirement)", fontsize=9)
+ax.set_title(f"Hip, one side, planetary gearbox: higher N cuts heat but stiffens and slows the joint\n"
+             f"(dotted = speed limit for the {SPEED_FLOOR:.1f} rad/s a push-recovery step needs)", fontsize=9)
 ax.legend(fontsize=7, loc="lower left")
 save(fig, "hip_ratio_trade.png")
 
