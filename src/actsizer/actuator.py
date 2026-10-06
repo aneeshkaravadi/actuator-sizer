@@ -37,21 +37,88 @@ MOTORS = [
 ]
 
 
+@dataclass(frozen=True)
+class Gearbox:
+    """Efficiency and backlash against ratio for one kind of gearbox.
+
+    A planetary gearbox needs a new stage for every ``max_stage_ratio`` of reduction,
+    and each stage multiplies the efficiency by ``stage_efficiency``, so efficiency
+    steps down as the ratio grows. A strain-wave (harmonic) gearbox does its whole
+    ratio range in one stage at a lower, roughly constant efficiency.
+    The values in the presets below are typical-range assumptions, not a product's.
+    """
+
+    name: str
+    stage_efficiency: float
+    max_stage_ratio: float = 10.0
+    stage_backlash_arcmin: float = 0.0  # play of one stage, measured at that stage's output
+    ratio_range: tuple[float, float] = (1.0, np.inf)
+
+    def stages(self, ratio: float) -> int:
+        if self.max_stage_ratio == np.inf:
+            return 1
+        return max(1, int(np.ceil(np.log(ratio) / np.log(self.max_stage_ratio) - 1e-9)))
+
+    def efficiency(self, ratio: float) -> float:
+        return self.stage_efficiency ** self.stages(ratio)
+
+    def backlash_arcmin(self, ratio: float) -> float:
+        """Play at the output. Each upstream stage's play is divided by the ratio of the stages after it."""
+        k = self.stages(ratio)
+        stage_ratio = ratio ** (1.0 / k)
+        return float(sum(self.stage_backlash_arcmin / stage_ratio**i for i in range(k)))
+
+
+PLANETARY = Gearbox("planetary (assumed 0.97 per stage, up to 10:1 per stage)", 0.97, 10.0, 10.0)
+STRAIN_WAVE = Gearbox("strain wave (assumed 0.75, one stage)", 0.75, np.inf, 0.0, (30.0, 160.0))
+
+
+def backdriven_efficiency(eta: float) -> float:
+    """Efficiency when the load drives the motor, for a gear train whose losses are Coulomb friction.
+
+    Friction always opposes the motion, so running backwards it subtracts where it used to add:
+    eta_back = 2 - 1/eta. Below eta = 0.5 that is zero or less: the gearbox self-locks.
+    """
+    return 2.0 - 1.0 / eta
+
+
 @dataclass
 class Drive:
     motor: Motor
     ratio: float
-    efficiency: float = 0.90  # gearbox
+    efficiency: float | None = None  # forward efficiency; None takes it from the gearbox, or 0.90
+    gearbox: Gearbox | None = None
 
-    def motor_torque(self, tau_joint, qdd_joint=0.0):
-        """Motor torque to deliver tau_joint while also accelerating its own rotor (reflected N^2 J)."""
-        return tau_joint / (self.ratio * self.efficiency) + self.motor.j_rotor * self.ratio * qdd_joint
+    @property
+    def eta(self) -> float:
+        if self.efficiency is not None:
+            return self.efficiency
+        return self.gearbox.efficiency(self.ratio) if self.gearbox else 0.90
 
-    def current(self, tau_joint, qdd_joint=0.0):
-        return self.motor_torque(tau_joint, qdd_joint) / self.motor.kt
+    def motor_torque(self, tau_joint, qdd_joint=0.0, qd_joint=None):
+        """Motor torque to deliver tau_joint while also accelerating its own rotor (reflected N^2 J).
 
-    def copper_loss(self, tau_joint, qdd_joint=0.0):
-        return self.current(tau_joint, qdd_joint) ** 2 * self.motor.r
+        Without ``qd_joint`` the gearbox is always taken as driven forward, which is conservative.
+        With it, wherever the load is driving the motor (tau * qd < 0, like lowering a tote) the
+        friction helps instead, and the torque scales with the backdriven efficiency.
+        """
+        tau = np.asarray(tau_joint, float)
+        through = tau / (self.ratio * self.eta)
+        if qd_joint is not None:
+            back = tau * np.asarray(qd_joint, float) < 0
+            through = np.where(back, tau * backdriven_efficiency(self.eta) / self.ratio, through)
+        return through + self.motor.j_rotor * self.ratio * np.asarray(qdd_joint, float)
+
+    def current(self, tau_joint, qdd_joint=0.0, qd_joint=None):
+        return self.motor_torque(tau_joint, qdd_joint, qd_joint) / self.motor.kt
+
+    def copper_loss(self, tau_joint, qdd_joint=0.0, qd_joint=None):
+        return self.current(tau_joint, qdd_joint, qd_joint) ** 2 * self.motor.r
+
+    def gearbox_loss(self, tau_joint, qd_joint):
+        """Heat made by friction in the gearbox itself (not in the winding), W."""
+        p = np.asarray(tau_joint, float) * np.asarray(qd_joint, float)
+        return np.where(p >= 0, p * (1.0 / self.eta - 1.0), -p * (1.0 - backdriven_efficiency(self.eta)))
 
     def feasible(self, tau_joint, qd_joint, qdd_joint=0.0) -> bool:
         """Every point under the peak-current limit and the voltage-limited speed line.
@@ -65,12 +132,13 @@ class Drive:
         return bool(np.all(tm <= m.kt * m.i_max) and np.all(wm <= m.w_max - tm * m.r / m.kt**2))
 
 
-def sweep_ratio(motor: Motor, tau, qd, qdd, ratios=np.geomspace(5, 300, 200)):
-    """RMS copper loss and feasibility across gear ratios for one joint's trajectory."""
+def sweep_ratio(motor: Motor, tau, qd, qdd, ratios=None, gearbox: Gearbox | None = None):
+    """Mean copper loss and feasibility across gear ratios for one joint's trajectory."""
+    ratios = np.geomspace(5, 300, 200) if ratios is None else ratios
     loss, ok = [], []
     for n in ratios:
-        dr = Drive(motor, n)
-        loss.append(np.mean(dr.copper_loss(tau, qdd)))
+        dr = Drive(motor, n, gearbox=gearbox)
+        loss.append(np.mean(dr.copper_loss(tau, qdd, qd if gearbox else None)))
         ok.append(dr.feasible(tau, qd, qdd))
     return ratios, np.array(loss), np.array(ok)
 

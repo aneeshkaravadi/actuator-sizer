@@ -71,6 +71,36 @@ def test_inertia_matched_ratio_minimizes_loss_for_pure_inertia():
     assert ratios[int(np.argmin(loss))] == pytest.approx(A.inertia_matched_ratio(J_load, mot.j_rotor), rel=0.03)
 
 
+def test_planetary_efficiency_steps_down_with_each_stage():
+    pg = A.PLANETARY
+    assert [pg.stages(n) for n in (5, 10, 10.5, 100, 101)] == [1, 1, 2, 2, 3]
+    assert pg.efficiency(50) == pytest.approx(0.97**2)
+    assert A.STRAIN_WAVE.stages(30) == A.STRAIN_WAVE.stages(160) == 1
+    # two 10:1 stages: the first stage's play reaches the output divided by 10
+    assert pg.backlash_arcmin(100) == pytest.approx(10 + 10 / 10)
+
+
+def test_backdriven_efficiency_and_self_locking():
+    assert A.backdriven_efficiency(0.9) == pytest.approx(2 - 1 / 0.9)
+    assert A.backdriven_efficiency(0.5) == pytest.approx(0.0)  # below this the gearbox self-locks
+    dr = A.Drive(A.MOTORS[1], 50, gearbox=A.PLANETARY)
+    eta = 0.97**2
+    raise_ = dr.motor_torque(100.0, 0.0, 1.0)  # lifting: the motor drives the load
+    lower = dr.motor_torque(100.0, 0.0, -1.0)  # lowering the same load: the load drives the motor
+    assert raise_ == pytest.approx(100 / (50 * eta)) and lower == pytest.approx(100 * (2 - 1 / eta) / 50)
+
+
+def test_gearbox_power_balance_both_ways():
+    """Motor shaft power (through the gears) = joint power + heat made in the gearbox, raising or lowering."""
+    rng = np.random.default_rng(1)
+    tau, qd = rng.normal(0, 80, 200), rng.normal(0, 2, 200)
+    for gb in (A.PLANETARY, A.STRAIN_WAVE):
+        dr = A.Drive(A.MOTORS[1], 60, gearbox=gb)
+        shaft = dr.motor_torque(tau, 0.0, qd) * dr.ratio * qd
+        assert shaft == pytest.approx(tau * qd + dr.gearbox_loss(tau, qd), rel=1e-12, abs=1e-12)
+        assert np.all(dr.gearbox_loss(tau, qd) >= 0)
+
+
 def test_steady_winding_temperature_matches_transient():
     mot = A.MOTORS[0]
     T = A.winding_temperature(mot, np.full(200000, 30.0), dt=0.5)
