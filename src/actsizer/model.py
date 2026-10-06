@@ -4,7 +4,7 @@ Both legs and both arms move together in a symmetric lift, so each pair is
 lumped into one chain. Joint torques reported here are therefore for BOTH
 sides together; divide by two for one actuator.
 
-Segment lengths, masses and centre-of-mass locations are scaled from human
+Segment lengths, masses and center-of-mass locations are scaled from human
 anthropometry (Winter, "Biomechanics and Motor Control of Human Movement",
 Table 4.1), which is where human-scale humanoids also land.
 

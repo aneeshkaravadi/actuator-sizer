@@ -8,7 +8,7 @@ How big does a humanoid robot's hip motor need to be if its job is moving 25 kg 
 
 ## The model
 
-It's a human-sized robot (1.73 m, 73 kg) in MuJoCo, simplified to a side view with both legs and both arms lumped together, since a two-handed lift is symmetric. Segment lengths and masses come from human anthropometry tables (Winter), which is roughly where human-scale humanoids end up anyway. The robot plans a pick posture and a finish posture with inverse kinematics, blends between them with a minimum-jerk profile, and MuJoCo's inverse dynamics tells me the torque at each joint at every instant. The feet are bolted down, so I check balance separately by tracking where the centre of pressure lands under the foot.
+It's a human-sized robot (1.73 m, 73 kg) in MuJoCo, simplified to a side view with both legs and both arms lumped together, since a two-handed lift is symmetric. Segment lengths and masses come from human anthropometry tables (Winter), which is roughly where human-scale humanoids end up anyway. The robot plans a pick posture and a finish posture with inverse kinematics, blends between them with a minimum-jerk profile, and MuJoCo's inverse dynamics tells me the torque at each joint at every instant. The feet are bolted down, so I check balance separately by tracking where the center of pressure lands under the foot.
 
 The first sanity check I trusted: over a whole lift, the total work done by all the joints matches the gain in potential energy to within 1%.
 
@@ -20,7 +20,7 @@ Per side, for a stoop lift in 1.5 s, the hip is doing almost all the work: 221 N
 
 ## Balance turned out to be the real limit
 
-This was the surprise. When I tried to speed up the squat lift, the centre of pressure ran off the back of the heel, because rising quickly out of a deep squat throws the body backwards. The fastest squat that stays balanced takes 3.9 s, against 1.5 s for the stoop. So for a robot with feet this size, lifting with your legs costs you 2.6 times the cycle time, which is a pretty big deal if the whole point is throughput.
+This was the surprise. When I tried to speed up the squat lift, the center of pressure ran off the back of the heel, because rising quickly out of a deep squat throws the body backwards. The fastest squat that stays balanced takes 3.9 s, against 1.5 s for the stoop. So for a robot with feet this size, lifting with your legs costs you 2.6 times the cycle time, which is a pretty big deal if the whole point is throughput.
 
 ## Picking a gear ratio
 
@@ -32,7 +32,7 @@ On the right, the same mid-size motor at every joint does 120 totes an hour (lif
 
 ## Do series springs help?
 
-I modelled the hip running into something stiff at 1 rad/s, with a spring between the gearbox and the leg. At a 120:1 ratio a 3000 N·m/rad spring cuts the shock on the gearbox from 470 to 98 N·m, but at 20:1 it actually makes it slightly worse, because there's not much rotor inertia to protect against in the first place. The cost of the spring is 0.074 rad of deflection at peak hip torque.
+I modeled the hip running into something stiff at 1 rad/s, with a spring between the gearbox and the leg. At a 120:1 ratio a 3000 N·m/rad spring cuts the shock on the gearbox from 470 to 98 N·m, but at 20:1 it actually makes it slightly worse, because there's not much rotor inertia to protect against in the first place. The cost of the spring is 0.074 rad of deflection at peak hip torque.
 
 <img src="docs/figures/sea_impact.png" width="55%">
 
@@ -47,7 +47,7 @@ and put the native file in cad/solidworks/
 
 - My first inverse dynamics run said the hip needed about 40,000 N·m. The body and the tote were sinking into the floor in the stoop posture and MuJoCo was adding contact forces. Turning contacts off (the feet are fixed anyway) fixed it.
 - My "squat" inverse kinematics kept quietly turning into a stoop, because it started from a standing pose and found the nearest answer. Seeding it from a squat posture fixed that.
-- Both lifts originally put the centre of pressure past the toes, until I made balance a much stronger term in the posture solver and moved the tote closer to the body.
+- Both lifts originally put the center of pressure past the toes, until I made balance a much stronger term in the posture solver and moved the tote closer to the body.
 - My first thermal study used a 120:1 ratio everywhere and nothing came close to overheating, which told me nothing. Sweeping the ratio is what made it useful.
 
 ## Running it
@@ -62,4 +62,4 @@ The motor parameters are illustrative values spread across a realistic range, no
 
 ---
 
-Aneesh Karavadi, engineering at UNT (TAMS). I do most of my CAD in SolidWorks, Fusion and Onshape. I used Claude Code to write a lot of the implementation, but the questions, the checks and the conclusions are mine.
+Aneesh Karavadi, dual-enrolled engineering student at UNT through TAMS. I do most of my CAD in SolidWorks, Fusion and Onshape. I used Claude Code to write a lot of the implementation, but the questions, the checks and the conclusions are mine.

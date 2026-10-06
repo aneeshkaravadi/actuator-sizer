@@ -28,13 +28,13 @@ $$q(s) = q_0 + (q_1-q_0)(10s^3 - 15s^4 + 6s^5), \qquad s = t/T$$
 
 Velocity and acceleration are zero at both ends, so the motion starts and stops smoothly.
 
-## 3. Balance: centre of pressure
+## 3. Balance: center of pressure
 
-The feet are fixed at the ankle, so the floor must supply the ankle torque through a shift of the centre of pressure (CoP):
+The feet are fixed at the ankle, so the floor must supply the ankle torque through a shift of the center of pressure (CoP):
 
 $$x_\text{CoP} = -\tau_\text{ankle} / F_z, \qquad F_z \approx m_\text{total}\,g$$
 
-The lift is **balanced** only if $x_\text{CoP}$ stays between heel and toe at every instant. A static forward lean puts the CoP exactly under the centre of mass, which is a sign check.
+The lift is **balanced** only if $x_\text{CoP}$ stays between heel and toe at every instant. A static forward lean puts the CoP exactly under the center of mass, which is a sign check.
 
 The fastest balanced lift is found by bisection on the duration $T$.
 
@@ -56,7 +56,7 @@ $$\tau_m = \frac{\tau_j}{N\eta} + J_m N \ddot q_j$$
 
 ## 5. Winding temperature
 
-The winding is modelled as a single thermal mass:
+The winding is modeled as a single thermal mass:
 
 $$C\,\dot T = P_{cu}\,[1 + \alpha(T - 25)] - \frac{T - T_\text{amb}}{R_{th}}$$
 
@@ -86,6 +86,6 @@ $$\tau_\text{gear} = \omega_0\, N^2J_m\sqrt{\frac{k_e}{J_L + N^2J_m}}$$
 
 - Sagittal plane only, with left and right sides lumped and the feet bolted down.
 - Contact forces with the tote and floor are not resolved.
-- Gearbox efficiency is a constant, and friction and backlash are not modelled.
+- Gearbox efficiency is a constant, and friction and backlash are not modeled.
 - The motors are illustrative, not catalogue parts.
 - The CoP uses a quasi-static vertical load.

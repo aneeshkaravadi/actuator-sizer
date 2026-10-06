@@ -15,7 +15,7 @@ from scipy.optimize import least_squares
 
 from .model import JOINTS, Body, com_x, grip_position, load
 
-FOOT_X = (-0.07, 0.19)  # m, heel and toe relative to the ankle: where the centre of pressure must stay
+FOOT_X = (-0.07, 0.19)  # m, heel and toe relative to the ankle: where the center of pressure must stay
 
 
 def solve_posture(m, d, grip_xz, style: str, q0=None) -> np.ndarray:
@@ -23,7 +23,7 @@ def solve_posture(m, d, grip_xz, style: str, q0=None) -> np.ndarray:
 
     'squat': keep the trunk upright-ish, bend the knees.
     'stoop': keep the legs straight-ish, bend at the hip.
-    The balance constraint keeps the whole-body centre of mass over the feet.
+    The balance constraint keeps the whole-body center of mass over the feet.
     """
     if style == "squat":
         prefer, w = np.array([0.35, -1.2, 0.9, 0.0, 0.0]), np.array([0.3, 0.3, 0.6, 0.05, 0.05])
@@ -59,7 +59,7 @@ class LiftResult:
     q: np.ndarray  # (n, 5)
     qd: np.ndarray
     tau: np.ndarray  # joint torque, both sides together (N m)
-    cop_x: np.ndarray  # centre of pressure under the feet (m from ankle)
+    cop_x: np.ndarray  # center of pressure under the feet (m from ankle)
     style: str
 
     @property
@@ -90,7 +90,7 @@ def simulate_lift(style: str = "squat", body: Body = Body(), duration: float = 1
         d.qpos[:], d.qvel[:], d.qacc[:] = Q[k], Qd[k], Qdd[k]
         mujoco.mj_inverse(m, d)
         tau[k] = d.qfrc_inverse
-        # The floor supplies the ankle torque through the foot, so the centre of
+        # The floor supplies the ankle torque through the foot, so the center of
         # pressure sits at x = tau_ankle / F_z ahead of the ankle (a positive torque
         # about +y pitches the body forward... and must be reacted by pressure toward
         # the toe). F_z is taken quasi-statically as the total weight.

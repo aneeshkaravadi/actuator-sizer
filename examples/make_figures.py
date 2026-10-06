@@ -72,7 +72,7 @@ for ax, (s, r) in zip(axes, lifts.items()):
         ax.plot(pts[:3, 0], pts[:3, 1], "-o", color="C0", alpha=a, ms=3)
         ax.plot(pts[2:6, 0], pts[2:6, 1], "-o", color="C1", alpha=a, ms=3)
         ax.plot(*pts[-1], "s", color="C3", alpha=a, ms=7)
-    ax.plot(r.cop_x, np.zeros_like(r.cop_x), color="k", lw=4, alpha=0.4, label="centre of pressure path")
+    ax.plot(r.cop_x, np.zeros_like(r.cop_x), color="k", lw=4, alpha=0.4, label="center of pressure path")
     ax.axvspan(*lift.FOOT_X, ymax=0.03, color="g", alpha=0.3, label="foot")
     ax.set_aspect("equal")
     ax.set_title(f"{s}", fontsize=10)
