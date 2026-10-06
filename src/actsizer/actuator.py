@@ -1,8 +1,8 @@
 """Motor + gearbox sizing, winding temperature, series elasticity, air-core vs iron-core.
 
-Motor parameters below are ILLUSTRATIVE frameless BLDC values chosen to span a
-realistic range (motor constant Km = Kt/sqrt(R) from ~0.2 to ~1.2 N m/sqrt(W)).
-For a real design, swap in datasheet numbers; every function takes a Motor.
+MOTORS are three real frameless BLDC kits, maxon's EC frameless HT 60 M, 76 M and
+90 M, built from the values on maxon's product pages (MAXON_HT, read 2026-10-06).
+The illustrative motors this started with are kept as ILLUSTRATIVE_MOTORS.
 """
 from __future__ import annotations
 
@@ -24,17 +24,72 @@ class Motor:
     c_th: float  # J/K, winding + stator thermal mass
     mass: float  # kg
     t_winding_max: float = 120.0  # C
+    # With these two, the thermal model has two nodes: the winding (c_winding) behind
+    # r_th_wh, then the housing (c_th) behind the rest of r_th to ambient.
+    r_th_wh: float | None = None  # K/W, winding to housing
+    c_winding: float | None = None  # J/K
 
     @property
     def km(self) -> float:
         return self.kt / np.sqrt(self.r)
 
 
-MOTORS = [
+ILLUSTRATIVE_MOTORS = [
     Motor("illustrative frameless S", 0.10, 0.20, 2.0e-5, 600.0, 30.0, 1.2, 150.0, 0.6),
     Motor("illustrative frameless M", 0.20, 0.12, 1.2e-4, 400.0, 40.0, 0.8, 300.0, 1.3),
     Motor("illustrative frameless L", 0.35, 0.08, 4.5e-4, 280.0, 50.0, 0.5, 600.0, 2.6),
 ]
+
+
+@dataclass(frozen=True)
+class MaxonDatasheet:
+    """A frameless kit's values exactly as maxon lists them (units as published)."""
+
+    name: str
+    part: str
+    nominal_voltage: float  # V
+    no_load_speed_rpm: float
+    nominal_torque_mnm: float  # max. continuous
+    nominal_current: float  # A, max. continuous
+    stall_torque_mnm: float
+    stall_current: float  # A
+    terminal_resistance: float  # ohm, phase to phase
+    torque_constant_mnm_a: float
+    speed_constant_rpm_v: float
+    rotor_inertia_gcm2: float
+    r_th_housing_ambient: float  # K/W
+    r_th_winding_housing: float  # K/W
+    tau_winding: float  # s, thermal time constant of the winding
+    tau_motor: float  # s, thermal time constant of the motor
+    max_winding_temp: float  # C
+    weight_g: float
+
+    def motor(self) -> Motor:
+        """The kit as a Motor.
+
+        The peak current is capped at the listed stall torque over Kt, not at the listed
+        stall current: the stall current is just V/R, and the listed stall torque is far
+        below Kt times it, because the iron saturates long before.
+        """
+        kt = self.torque_constant_mnm_a / 1000.0
+        return Motor(f"maxon {self.name}", kt=kt, r=self.terminal_resistance, j_rotor=self.rotor_inertia_gcm2 * 1e-7,
+                     w_max=self.no_load_speed_rpm * 2 * np.pi / 60, i_max=self.stall_torque_mnm / 1000.0 / kt,
+                     r_th=self.r_th_winding_housing + self.r_th_housing_ambient,
+                     c_th=self.tau_motor / self.r_th_housing_ambient, mass=self.weight_g / 1000.0,
+                     t_winding_max=self.max_winding_temp, r_th_wh=self.r_th_winding_housing,
+                     c_winding=self.tau_winding / self.r_th_winding_housing)
+
+
+# From maxon's product pages (maxongroup.com/maxon/view/product/<part>), read 2026-10-06.
+MAXON_HT = [
+    MaxonDatasheet("EC frameless HT 60 M", "936176", 48, 4640, 612, 5.76, 3460, 96.9, 0.495, 98, 97.4, 177,
+                   2.04, 1.65, 37.8, 231, 155, 226),
+    MaxonDatasheet("EC frameless HT 76 M", "934928", 48, 3750, 1270, 9.65, 7000, 223, 0.215, 122, 78.6, 461,
+                   1.5, 1.37, 54, 1320, 155, 376),
+    MaxonDatasheet("EC frameless HT 90 M", "937612", 48, 2490, 2750, 13.9, 10600, 321, 0.149, 183, 52.2, 1200,
+                   1.05, 1.12, 77.7, 341, 155, 649),
+]
+MOTORS = [d.motor() for d in MAXON_HT]
 
 
 @dataclass(frozen=True)
@@ -159,16 +214,28 @@ def inertia_matched_ratio(j_load: float, j_rotor: float) -> float:
 # ---------------------------------------------------------------- winding temperature
 
 def winding_temperature(motor: Motor, p_loss_w: np.ndarray, dt: float, t_amb: float = 30.0, alpha_cu: float = 0.00393):
-    """First-order thermal model with copper resistance rising with temperature.
+    """Winding temperature, with copper resistance rising with temperature.
 
-    C dT/dt = P_loss * (1 + a (T - 25)) / (1 + a (T_ref - 25))  -  (T - T_amb) / R_th,
-    where P_loss was computed at the 25 C resistance.
+    One node:   C dT/dt = P (1 + a (T - 25)) - (T - T_amb) / R_th
+    Two nodes (when the motor gives r_th_wh and c_winding, as maxon's data do):
+        C_w dT_w/dt = P (1 + a (T_w - 25)) - (T_w - T_h) / R_wh
+        C_h dT_h/dt = (T_w - T_h) / R_wh - (T_h - T_amb) / R_ha,    R_ha = R_th - R_wh
+    P is the copper loss at the 25 C resistance.
     """
     T = np.empty(len(p_loss_w))
-    t = t_amb
+    if motor.r_th_wh is None:
+        t = t_amb
+        for i, p in enumerate(p_loss_w):
+            t += dt * (p * (1 + alpha_cu * (t - 25.0)) - (t - t_amb) / motor.r_th) / motor.c_th
+            T[i] = t
+        return T
+    r_wh, r_ha = motor.r_th_wh, motor.r_th - motor.r_th_wh
+    tw = th = t_amb
     for i, p in enumerate(p_loss_w):
-        t += dt * (p * (1 + alpha_cu * (t - 25.0)) - (t - t_amb) / motor.r_th) / motor.c_th
-        T[i] = t
+        q_wh = (tw - th) / r_wh
+        tw += dt * (p * (1 + alpha_cu * (tw - 25.0)) - q_wh) / motor.c_winding
+        th += dt * (q_wh - (th - t_amb) / r_ha) / motor.c_th
+        T[i] = tw
     return T
 
 

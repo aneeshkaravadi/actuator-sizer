@@ -165,3 +165,29 @@ def test_min_jerk_peak_speed_is_fifteen_eighths_of_the_average():
     t = np.linspace(0, 1, 100001)
     _, qd, _ = lift.min_jerk(np.zeros(1), np.ones(1), 1.0, t)
     assert qd.max() == pytest.approx(R.MIN_JERK_PEAK, rel=1e-6)
+
+
+# ---------------------------------------------------------------- datasheet motors
+
+@pytest.mark.parametrize("d", A.MAXON_HT, ids=lambda d: d.part)
+def test_maxon_datasheet_values_are_self_consistent(d):
+    """Cross-checks between independently listed numbers, which would catch a mistyped value."""
+    assert d.torque_constant_mnm_a == pytest.approx(60_000 / (2 * np.pi * d.speed_constant_rpm_v), rel=0.01)
+    assert 0.98 < d.no_load_speed_rpm / (d.speed_constant_rpm_v * d.nominal_voltage) <= 1.0
+    assert d.stall_current == pytest.approx(d.nominal_voltage / d.terminal_resistance, rel=0.01)
+    # the listed stall torque sits far below Kt times the stall current: the iron saturates
+    assert d.stall_torque_mnm < 0.5 * d.torque_constant_mnm_a * d.stall_current
+
+
+def test_two_node_winding_model_settles_on_the_closed_form():
+    mot = A.MOTORS[1]
+    T = A.winding_temperature(mot, np.full(40000, 25.0), dt=0.5)
+    assert T[-1] == pytest.approx(A.steady_winding_temperature(mot, 25.0), abs=0.2)
+
+
+def test_two_node_winding_first_heats_like_its_own_small_mass():
+    """For the first seconds the winding barely feels the housing: dT/dt is about P / C_winding."""
+    mot = A.MOTORS[0]
+    T = A.winding_temperature(mot, np.full(40, 50.0), dt=0.05)  # 2 s, far below its 37.8 s time constant
+    rate = 50.0 * (1 + 0.00393 * (30.0 - 25.0)) / mot.c_winding
+    assert (T[-1] - 30.0) / 2.0 == pytest.approx(rate, rel=0.05)
