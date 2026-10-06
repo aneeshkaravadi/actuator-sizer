@@ -28,15 +28,23 @@ I expected to find an optimal gear ratio and got something else. For a slow lift
 
 <img src="docs/figures/hip_ratio_trade.png" width="49%"> <img src="docs/figures/shuttle_thermal.png" width="49%">
 
-On the right, the same mid-size motor at every joint does 120 totes an hour (lift, carry, lower, walk back). The hip overheats first, below about 12:1, and the shoulder holding the tote out in front is next at about 9.5:1. That's interesting because the low ratios that make a robot backdrivable and safe around people (6 to 10:1) are right where these two joints run out of thermal margin.
+On the right, the same mid-size motor at every joint (maxon's EC frameless HT 76 M, next section) does 120 totes an hour (lift, carry, lower, walk back). The hip overheats first, below about 43:1, and the shoulder holding the tote out in front is next at about 36:1. That rules out the low ratios that make a robot backdrivable and safe around people (6 to 10:1) for a motor this size.
+
+## Real motors instead of made-up ones
+
+My first version used three motors I'd made up to span a realistic range. Swapping in three real frameless kits from maxon's catalog changed the answer a lot. These are the EC frameless HT 60 M, 76 M and 90 M, with every number from their product pages. The real kits are lighter (226 to 649 g) and have lower motor constants (0.14 to 0.47 N·m/√W, against 0.22 to 1.24 for mine), so they make more heat for the same torque. My made-up mid-size motor had said 12:1 was enough at the hip for the shuttle. The real one needs 43:1.
+
+With real motors the shuttle sets a minimum ratio at the hip, from heat, and the push recovery (below) sets a maximum, from speed. A motor only works if there's room between the two. The 226 g kit has none: it needs 95:1 to stay cool, but past 74:1 it's too slow. The 376 g kit works from 43 to 60:1, and the 649 g kit from 21 to 40:1.
+
+Two details came out of the datasheets. maxon gives two thermal resistances and two time constants instead of one, so the winding temperature model now has two nodes: the winding heats up in under a minute and a half, the housing over several minutes. And the listed stall torque is far below the torque constant times the stall current, because the iron saturates, so I cap the current at the listed stall torque. The tests cross-check the datasheet numbers against each other (torque constant against speed constant, stall current against V/R), which would catch a typo.
 
 ## What the gearbox costs
 
-I first used a constant 90% gearbox efficiency. A real planetary gearbox adds a stage for every 10:1 or so, and each stage costs a few percent, so I made efficiency step down with the number of stages (0.97 per stage, an assumption) and counted the gearbox's own friction heat too. The winding heat still keeps falling with ratio, but the total doesn't. Past about 100:1 the gearbox makes most of the heat. The total is 18.4 W at 100:1, jumps to 24.5 W once a third stage is needed, and is still 18 W at 300:1.
+I first used a constant 90% gearbox efficiency. A real planetary gearbox adds a stage for every 10:1 or so, and each stage costs a few percent, so I made efficiency step down with the number of stages (0.97 per stage, an assumption) and counted the gearbox's own friction heat too. The winding heat keeps falling with ratio, but the gearbox's share keeps growing, and past about 140:1 the gearbox makes most of the heat. Each extra stage also costs a step: the total goes from 45.6 W at 100:1 to 52.9 W just past it, once a third stage is needed.
 
 Lowering a tote runs the gearbox backwards, with the load driving the motor, and then friction helps hold the load instead of fighting the motor. For friction-type losses the backwards efficiency is $2 - 1/\eta$, so the motor needs less torque going down than coming up. The shuttle numbers above include that.
 
-A strain-wave gearbox gets a high ratio in one stage with essentially no backlash, but at an assumed 75% efficiency it makes 2.6 times the heat of a two-stage planetary at 50:1 (104 W against 40 W), most of it in the gearbox. Backlash barely depends on the ratio, because each stage's play reaches the output divided by the ratio of the stages after it, so the last stage sets it. At 50:1 that's about 11 arcmin, which lets the hands wander about 3 mm at the hip's 0.92 m reach.
+A strain-wave gearbox gets a high ratio in one stage with essentially no backlash, but at an assumed 75% efficiency it makes 1.9 times the heat of a two-stage planetary at 50:1 (274 W against 148 W), and five times the gearbox heat. Backlash barely depends on the ratio, because each stage's play reaches the output divided by the ratio of the stages after it, so the last stage sets it. At 50:1 that's about 11 arcmin, which lets the hands wander about 3 mm at the hip's 0.92 m reach.
 
 <img src="docs/figures/gearbox_tradeoffs.png" width="95%">
 
@@ -50,7 +58,7 @@ So the hip speed you need depends as much on how far the robot is allowed to ste
 
 ## Do series springs help?
 
-I modeled the hip running into something stiff at 1 rad/s, with a spring between the gearbox and the leg. At a 120:1 ratio a 3000 N·m/rad spring cuts the shock on the gearbox from 470 to 98 N·m, but at 20:1 it actually makes it slightly worse, because there's not much rotor inertia to protect against in the first place. The cost of the spring is 0.074 rad of deflection at peak hip torque.
+I modeled the hip running into something stiff at 1 rad/s, with a spring between the gearbox and the leg. At a 120:1 ratio a 3000 N·m/rad spring cuts the shock on the gearbox from 218 to 74 N·m, but at 20:1 it actually makes it worse (11 against 7 N·m), because there's not much rotor inertia to protect against in the first place. The cost of the spring is 0.074 rad of deflection at peak hip torque.
 
 <img src="docs/figures/sea_impact.png" width="55%">
 
@@ -76,7 +84,7 @@ pytest -q
 python examples/make_figures.py
 ```
 
-The motor parameters are illustrative values spread across a realistic range, not catalogue parts, so swap in a datasheet for a real design. The physics is written out in [DERIVATIONS.md](DERIVATIONS.md). Open questions and next steps are in [issues](https://github.com/aneeshkaravadi/actuator-sizer/issues).
+The motors are three maxon frameless kits, with every number from maxon's product pages, and the made-up ones I started with are still in the code as `ILLUSTRATIVE_MOTORS`. The physics is written out in [DERIVATIONS.md](DERIVATIONS.md). Open questions and next steps are in [issues](https://github.com/aneeshkaravadi/actuator-sizer/issues).
 
 ---
 

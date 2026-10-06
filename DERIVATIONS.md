@@ -74,6 +74,14 @@ $$T = \frac{T_\text{amb} + R_{th}P(1 - 25\alpha)}{1 - R_{th}P\alpha}$$
 
 This goes to infinity as $R_{th}P\alpha \to 1$: **thermal runaway**, where heating grows faster than cooling.
 
+**Two nodes.** maxon's datasheets give two thermal resistances (winding to housing, $R_{wh}$, and housing to ambient, $R_{ha}$) and two time constants. They describe a winding with heat capacity $C_w = \tau_w/R_{wh}$ sitting on a housing with $C_h = \tau_m/R_{ha}$:
+
+$$C_w\dot T_w = P\,[1 + \alpha(T_w - 25)] - \frac{T_w - T_h}{R_{wh}}, \qquad C_h\dot T_h = \frac{T_w - T_h}{R_{wh}} - \frac{T_h - T_\text{amb}}{R_{ha}}$$
+
+In steady state the two resistances are just in series, so the closed form above holds with $R_{th} = R_{wh} + R_{ha}$. In the first seconds the winding barely feels the housing and heats at about $P/C_w$, which is much faster than the one-node model says (both checked in `tests/test_actsizer.py`).
+
+**Datasheet values.** The tests check them against each other: $K_t = 60/(2\pi K_v)$ in SI, the no-load speed just under $K_v V$, and the stall current equal to $V/R$. The listed stall torque is far below $K_t I_\text{stall}$, because the iron saturates, so the current is capped at $\tau_\text{stall}/K_t$ instead of $I_\text{stall}$.
+
 ## 6. Series elastic actuator impact
 
 Model it as two inertias joined by the series spring $k$:
@@ -111,6 +119,6 @@ $z_0 = 1.02$ m and the hip height (the swing leg's length, 0.93 m) come from the
 - Sagittal plane only, with left and right sides lumped and the feet bolted down.
 - Contact forces with the tote and floor are not resolved.
 - Gearbox efficiency comes from a stage count with assumed per-stage values and pure Coulomb friction, with no speed- or load-dependent losses. Backlash is reported but not fed into the dynamics.
-- The motors are illustrative, not catalogue parts.
+- The motors are maxon frameless kits, but their thermal resistance to ambient is for maxon's reference mounting, and a real joint housing would differ.
 - The CoP uses a quasi-static vertical load.
 - Push recovery uses a point-mass pendulum at constant height, with no reaction delay and no swing-leg dynamics, so its speeds are a lower bound.

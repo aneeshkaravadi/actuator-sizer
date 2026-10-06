@@ -122,7 +122,7 @@ results["hip_ratio_trade"] = {}
 for mot, c in zip(A.MOTORS, ("C0", "C1", "C2")):
     ratios, loss, ok = A.sweep_ratio(mot, tau_h, qd_h, qdd_h, gearbox=A.PLANETARY)
     n_speed = mot.w_max / SPEED_FLOOR * 0.8  # keep 20% margin for torque at that speed
-    ax.plot(ratios, loss, color=c, label=f"{mot.name.split()[-1]}: Km {mot.km:.2f} N m/sqrt(W)")
+    ax.plot(ratios, loss, color=c, label=f"{' '.join(mot.name.split()[-3:])}: Km {mot.km:.2f} N m/sqrt(W)")
     ax.axvline(n_speed, color=c, ls=":", lw=1)
     ax2.plot(ratios, mot.j_rotor * ratios**2, color=c, ls="--", lw=1)
     usable = ok & (ratios <= n_speed)
@@ -191,14 +191,13 @@ axes[1].set_ylim(-0.5, 15)
 ax2.set_ylim(np.radians(-0.5 / 60) * reach * 1000, np.radians(15 / 60) * reach * 1000)
 axes[1].set_title("backlash is set by the last stage, so it barely grows with N", fontsize=9)
 axes[1].legend(fontsize=7, loc="lower right")
-fig.suptitle("Hip, 'M' motor, stoop lift: gearbox efficiency and backlash against ratio", fontsize=10)
+fig.suptitle(f"Hip, {mot_m.name}, stoop lift: gearbox efficiency and backlash against ratio", fontsize=10)
 save(fig, "gearbox_tradeoffs.png")
 results["gearbox"]["hip_reach_at_pick_m"] = round(reach, 3)
 results["gearbox"]["hand_play_mm_planetary_at_50_to_1"] = round(float(np.radians(A.PLANETARY.backlash_arcmin(50) / 60) * reach * 1000), 1)
 
 # ------------------------------------------------------------------ 3. tote shuttle: which joint overheats first?
 mot = A.MOTORS[1]
-choice = {"ankle": 120, "knee": 120, "hip": results["hip_ratio_trade"][mot.name]["ratio"], "shoulder": 120, "elbow": 120}
 m_empty, d_empty = model.load(model.Body(tote_mass=0.0))
 q_end = r.q[-1]
 d.qpos[:], d.qvel[:], d.qacc[:] = q_end, 0, 0
@@ -211,17 +210,17 @@ lift_T = r.t[-1]
 RATE = 120  # totes per hour: one every 30 s
 
 
-def steady_T(j_idx, ratio, rate):
+def steady_T(j_idx, ratio, rate, motor=mot):
     cycle = 3600.0 / rate
     walk = max(cycle - 2 * lift_T, 0.0) / 2  # carry loaded half the remaining time, return empty the other half
-    dr = A.Drive(mot, ratio, gearbox=A.PLANETARY)
+    dr = A.Drive(motor, ratio, gearbox=A.PLANETARY)
     tau_j, qd_j, qdd_j = r.tau[:, j_idx] / 2, r.qd[:, j_idx], qdd[:, j_idx]
     e_lift = np.trapezoid(dr.copper_loss(tau_j, qdd_j, qd_j), r.t)
     # Lowering is the lift played backwards: with no damping the torques are the same at each posture,
     # but the speeds flip sign, so the load drives the gearbox and friction helps.
     e_lower = np.trapezoid(dr.copper_loss(tau_j, qdd_j, -qd_j), r.t)
     p_avg = (e_lift + e_lower + walk * dr.copper_loss(hold_tau[j_idx]) + walk * dr.copper_loss(empty_tau[j_idx])) / cycle
-    return A.steady_winding_temperature(mot, p_avg)
+    return A.steady_winding_temperature(motor, p_avg)
 
 
 ratios = np.geomspace(4, 120, 60)
@@ -233,15 +232,23 @@ for i, j in enumerate(J):
     ok = np.where(T <= mot.t_winding_max)[0]
     results["min_ratio_for_120_totes_per_hour"][j] = round(float(ratios[ok[0]]), 1) if len(ok) else None
 ax.axhline(mot.t_winding_max, color="k", ls=":", lw=1)
-ax.text(4.3, mot.t_winding_max + 4, "winding limit 120 C", fontsize=8)
+ax.text(4.3, mot.t_winding_max + 4, f"winding limit {mot.t_winding_max:.0f} C", fontsize=8)
 ax.set_xscale("log")
 ax.set_ylim(25, 250)
-ax.set_xlabel("gear ratio N (same 'M' motor at every joint)")
+ax.set_xlabel(f"gear ratio N (the same {mot.name} at every joint)")
 ax.set_ylabel("steady winding temperature (C)")
 ax.set_title(f"Tote shuttle at {RATE}/hour: below what gear ratio does each joint overheat?", fontsize=9)
 ax.legend(fontsize=8)
 save(fig, "shuttle_thermal.png")
 results["hold_torque_per_side_Nm"] = dict(zip(J, np.round(hold_tau, 1).tolist()))
+results["min_ratio_for_120_totes_per_hour_by_motor"] = {}
+for motor in A.MOTORS:
+    row = {}
+    for i, j in enumerate(J):
+        T = np.array([steady_T(i, n, RATE, motor) for n in ratios])
+        ok = np.where(T <= motor.t_winding_max)[0]
+        row[j] = round(float(ratios[ok[0]]), 1) if len(ok) else None
+    results["min_ratio_for_120_totes_per_hour_by_motor"][f"{motor.name} ({motor.mass * 1000:.0f} g)"] = row
 
 # ------------------------------------------------------------------ 4. series elastic actuator: impact
 j_link = 1.5  # kg m^2, rough trunk + arms about the hip

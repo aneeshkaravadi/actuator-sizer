@@ -105,41 +105,41 @@
     }
   },
   "hip_ratio_trade": {
-    "illustrative frameless S": {
-      "ratio": 91.0,
-      "mean_copper_W": 57.33,
-      "reflected_inertia_kgm2": 0.165
+    "maxon EC frameless HT 60 M": {
+      "ratio": 74.0,
+      "mean_copper_W": 222.61,
+      "reflected_inertia_kgm2": 0.097
     },
-    "illustrative frameless M": {
-      "ratio": 60.3,
-      "mean_copper_W": 19.7,
-      "reflected_inertia_kgm2": 0.436
+    "maxon EC frameless HT 76 M": {
+      "ratio": 59.1,
+      "mean_copper_W": 98.24,
+      "reflected_inertia_kgm2": 0.161
     },
-    "illustrative frameless L": {
-      "ratio": 42.5,
-      "mean_copper_W": 8.7,
-      "reflected_inertia_kgm2": 0.812
+    "maxon EC frameless HT 90 M": {
+      "ratio": 39.1,
+      "mean_copper_W": 68.94,
+      "reflected_inertia_kgm2": 0.184
     }
   },
   "gearbox": {
     "planetary (assumed 0.97 per stage, up to 10:1 per stage)": {
       "min_total_heat_ratio": 300.0,
-      "min_total_heat_W": 18.01,
-      "copper_W_at_that_ratio": 1.08,
+      "min_total_heat_W": 21.34,
+      "copper_W_at_that_ratio": 4.42,
       "gearbox_W_at_that_ratio": 16.93,
       "at_50_to_1": {
-        "copper_W": 28.54,
+        "copper_W": 136.89,
         "gearbox_W": 11.11,
         "efficiency": 0.941
       }
     },
     "strain wave (assumed 0.75, one stage)": {
       "min_total_heat_ratio": 160.0,
-      "min_total_heat_W": 63.57,
-      "copper_W_at_that_ratio": 4.6,
+      "min_total_heat_W": 80.39,
+      "copper_W_at_that_ratio": 21.42,
       "gearbox_W_at_that_ratio": 58.96,
       "at_50_to_1": {
-        "copper_W": 44.86,
+        "copper_W": 215.33,
         "gearbox_W": 58.96,
         "efficiency": 0.75
       }
@@ -148,11 +148,11 @@
     "hand_play_mm_planetary_at_50_to_1": 3.0
   },
   "min_ratio_for_120_totes_per_hour": {
-    "ankle": 6.0,
-    "knee": 7.5,
-    "hip": 12.0,
-    "shoulder": 9.5,
-    "elbow": 6.3
+    "ankle": 22.5,
+    "knee": 28.4,
+    "hip": 42.5,
+    "shoulder": 35.8,
+    "elbow": 23.9
   },
   "hold_torque_per_side_Nm": {
     "ankle": -28.2,
@@ -161,18 +161,41 @@
     "shoulder": -65.3,
     "elbow": -44.9
   },
+  "min_ratio_for_120_totes_per_hour_by_motor": {
+    "maxon EC frameless HT 60 M (226 g)": {
+      "ankle": 47.7,
+      "knee": 63.6,
+      "hip": 95.3,
+      "shoulder": 75.7,
+      "elbow": 53.5
+    },
+    "maxon EC frameless HT 76 M (376 g)": {
+      "ankle": 22.5,
+      "knee": 28.4,
+      "hip": 42.5,
+      "shoulder": 35.8,
+      "elbow": 23.9
+    },
+    "maxon EC frameless HT 90 M (649 g)": {
+      "ankle": 10.7,
+      "knee": 14.2,
+      "hip": 21.3,
+      "shoulder": 16.9,
+      "elbow": 12.0
+    }
+  },
   "sea_impact": {
     "N20": {
-      "rigid_Nm": 18,
-      "k_3000_Nm": 21
+      "rigid_Nm": 7,
+      "k_3000_Nm": 11
     },
     "N50": {
-      "rigid_Nm": 117,
-      "k_3000_Nm": 54
+      "rigid_Nm": 44,
+      "k_3000_Nm": 34
     },
     "N120": {
-      "rigid_Nm": 470,
-      "k_3000_Nm": 98
+      "rigid_Nm": 218,
+      "k_3000_Nm": 74
     }
   },
   "sea_static_deflection_rad_at_peak_hip_torque": {
