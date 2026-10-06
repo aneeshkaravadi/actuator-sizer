@@ -30,6 +30,16 @@ I expected to find an optimal gear ratio and got something else. For a slow lift
 
 On the right, the same mid-size motor at every joint does 120 totes an hour (lift, carry, lower, walk back). The hip overheats first, below about 12:1, and the shoulder holding the tote out in front is next at about 9.5:1. That's interesting because the low ratios that make a robot backdrivable and safe around people (6 to 10:1) are right where these two joints run out of thermal margin.
 
+## What the gearbox costs
+
+I first used a constant 90% gearbox efficiency. A real planetary gearbox adds a stage for every 10:1 or so, and each stage costs a few percent, so I made efficiency step down with the number of stages (0.97 per stage, an assumption) and counted the gearbox's own friction heat too. The winding heat still keeps falling with ratio, but the total doesn't. Past about 100:1 the gearbox makes most of the heat. The total is 18.4 W at 100:1, jumps to 24.5 W once a third stage is needed, and is still 18 W at 300:1.
+
+Lowering a tote runs the gearbox backwards, with the load driving the motor, and then friction helps hold the load instead of fighting the motor. For friction-type losses the backwards efficiency is $2 - 1/\eta$, so the motor needs less torque going down than coming up. The shuttle numbers above include that.
+
+A strain-wave gearbox gets a high ratio in one stage with essentially no backlash, but at an assumed 75% efficiency it makes 2.6 times the heat of a two-stage planetary at 50:1 (104 W against 40 W), most of it in the gearbox. Backlash barely depends on the ratio, because each stage's play reaches the output divided by the ratio of the stages after it, so the last stage sets it. At 50:1 that's about 11 arcmin, which lets the hands wander about 3 mm at the hip's 0.92 m reach.
+
+<img src="docs/figures/gearbox_tradeoffs.png" width="95%">
+
 ## How fast does the hip need to be?
 
 The gear-ratio trade needs a top speed for the hip, and at first I just assumed 6 rad/s. To get it from an actual task instead, I looked at about the fastest thing a hip has to do, which is catching the robot with one step after a shove. I treated the robot as an inverted pendulum, with its center of mass at 1.02 m, taken from the MuJoCo model. A push that leaves the center of mass moving slower than 0.59 m/s can be stopped by the ankles alone. Anything harder needs a step, and the foot has to land where the robot's capture point has got to by then, which runs away exponentially. A slow step needs a long stride, and a short stride needs a fast step.
@@ -45,16 +55,6 @@ I modeled the hip running into something stiff at 1 rad/s, with a spring between
 <img src="docs/figures/sea_impact.png" width="55%">
 
 There's also a quick air-core vs iron-core motor comparison ([figure](docs/figures/aircore_vs_iron.png)) and a CAD envelope for the hip actuator: motor bay, gearbox bay and output flange ([STEP](cad/hip_actuator_envelope.step)).
-
-## What the gearbox costs
-
-I first used a constant 90% gearbox efficiency. A real planetary gearbox adds a stage for every 10:1 or so, and each stage costs a few percent, so I made efficiency step down with the number of stages (0.97 per stage, an assumption) and counted the gearbox's own friction heat too. The winding heat still keeps falling with ratio, but the total doesn't. Past about 100:1 the gearbox makes most of the heat. The total is 18.4 W at 100:1, jumps to 24.5 W once a third stage is needed, and is still 18 W at 300:1.
-
-Lowering a tote runs the gearbox backwards, with the load driving the motor, and then friction helps hold the load instead of fighting the motor. For friction-type losses the backwards efficiency is $2 - 1/\eta$, so the motor needs less torque going down than coming up. The shuttle numbers above include that.
-
-A strain-wave gearbox gets a high ratio in one stage with essentially no backlash, but at an assumed 75% efficiency it makes 2.6 times the heat of a two-stage planetary at 50:1 (104 W against 40 W), most of it in the gearbox. Backlash barely depends on the ratio, because each stage's play reaches the output divided by the ratio of the stages after it, so the last stage sets it. At 50:1 that's about 11 arcmin, which lets the hands wander about 3 mm at the hip's 0.92 m reach.
-
-<img src="docs/figures/gearbox_tradeoffs.png" width="95%">
 
 <!-- TODO(Aneesh): replace or add next to the generated envelope with your own SolidWorks model, e.g.
 <img src="docs/photos/hip_actuator_solidworks.png" width="60%">
