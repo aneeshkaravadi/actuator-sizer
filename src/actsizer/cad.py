@@ -34,12 +34,11 @@ def actuator_housing(step_path: str | Path, motor_od_mm: float = 90.0, stack_mm:
                 bd.Cylinder(2.75, 2 * wall_mm + 6, align=(bd.Align.CENTER, bd.Align.CENTER, bd.Align.MIN),
                             mode=bd.Mode.SUBTRACT)
     # output flange as a separate ring with a bolt circle
-    with bd.BuildPart() as fl:
-        with bd.Locations((0, 0, length)):
-            bd.Cylinder(od / 2 - 6, 8, align=(bd.Align.CENTER, bd.Align.CENTER, bd.Align.MIN))
-            bd.Cylinder(12, 8, align=(bd.Align.CENTER, bd.Align.CENTER, bd.Align.MIN), mode=bd.Mode.SUBTRACT)
-            with bd.PolarLocations(od / 2 - 14, flange_bolts):
-                bd.Cylinder(2.2, 8, align=(bd.Align.CENTER, bd.Align.CENTER, bd.Align.MIN), mode=bd.Mode.SUBTRACT)
+    with bd.BuildPart() as fl, bd.Locations((0, 0, length)):
+        bd.Cylinder(od / 2 - 6, 8, align=(bd.Align.CENTER, bd.Align.CENTER, bd.Align.MIN))
+        bd.Cylinder(12, 8, align=(bd.Align.CENTER, bd.Align.CENTER, bd.Align.MIN), mode=bd.Mode.SUBTRACT)
+        with bd.PolarLocations(od / 2 - 14, flange_bolts):
+            bd.Cylinder(2.2, 8, align=(bd.Align.CENTER, bd.Align.CENTER, bd.Align.MIN), mode=bd.Mode.SUBTRACT)
     asm = bd.Compound(label="actuator_envelope", children=[p.part, fl.part])
     bd.export_step(asm, str(step_path))
     return asm

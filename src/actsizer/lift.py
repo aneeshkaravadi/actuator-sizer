@@ -76,9 +76,9 @@ class LiftResult:
         return bool(np.all((self.cop_x > FOOT_X[0]) & (self.cop_x < FOOT_X[1])))
 
 
-def simulate_lift(style: str = "squat", body: Body = Body(), duration: float = 1.5,
+def simulate_lift(style: str = "squat", body: Body | None = None, duration: float = 1.5,
                   pick_xz=(0.35, 0.25), place_xz=(0.30, 0.95), armature=None, n: int = 301) -> LiftResult:
-    m, d = load(body, armature)
+    m, d = load(Body() if body is None else body, armature)
     q_start = solve_posture(m, d, np.array(pick_xz), style)
     q_end = solve_posture(m, d, np.array(place_xz), "stand", q_start)
     t = np.linspace(0, duration, n)

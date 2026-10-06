@@ -48,8 +48,9 @@ def _capsule_inertia(m, L, r=0.04):
     return f"{m * r**2 / 2:.6f} {Iyy:.6f} {Iyy:.6f}"
 
 
-def build_mjcf(b: Body = Body(), armature: dict[str, float] | None = None) -> str:
+def build_mjcf(b: Body | None = None, armature: dict[str, float] | None = None) -> str:
     """Return MJCF XML. ``armature`` adds reflected rotor inertia N^2 J_m per joint (kg m^2)."""
+    b = Body() if b is None else b
     arm = {j: 0.0 for j in JOINTS} | (armature or {})
     Ls, ms, cs = b.seg(b.shank)
     Lt, mt, ct = b.seg(b.thigh)
@@ -108,7 +109,7 @@ def build_mjcf(b: Body = Body(), armature: dict[str, float] | None = None) -> st
 </mujoco>"""
 
 
-def load(b: Body = Body(), armature=None) -> tuple[mujoco.MjModel, mujoco.MjData]:
+def load(b: Body | None = None, armature=None) -> tuple[mujoco.MjModel, mujoco.MjData]:
     m = mujoco.MjModel.from_xml_string(build_mjcf(b, armature))
     return m, mujoco.MjData(m)
 
