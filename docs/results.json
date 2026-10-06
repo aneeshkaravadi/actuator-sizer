@@ -70,24 +70,54 @@
     }
   },
   "hip_ratio_trade": {
-    "illustrative frameless S": null,
+    "illustrative frameless S": {
+      "ratio": 78.8,
+      "mean_copper_W": 76.4,
+      "reflected_inertia_kgm2": 0.124
+    },
     "illustrative frameless M": {
       "ratio": 53.3,
-      "mean_copper_W": 27.49,
+      "mean_copper_W": 25.16,
       "reflected_inertia_kgm2": 0.341
     },
     "illustrative frameless L": {
       "ratio": 36.8,
-      "mean_copper_W": 12.62,
+      "mean_copper_W": 11.56,
       "reflected_inertia_kgm2": 0.609
     }
   },
+  "gearbox": {
+    "planetary (assumed 0.97 per stage, up to 10:1 per stage)": {
+      "min_total_heat_ratio": 300.0,
+      "min_total_heat_W": 18.01,
+      "copper_W_at_that_ratio": 1.08,
+      "gearbox_W_at_that_ratio": 16.93,
+      "at_50_to_1": {
+        "copper_W": 28.54,
+        "gearbox_W": 11.11,
+        "efficiency": 0.941
+      }
+    },
+    "strain wave (assumed 0.75, one stage)": {
+      "min_total_heat_ratio": 160.0,
+      "min_total_heat_W": 63.57,
+      "copper_W_at_that_ratio": 4.6,
+      "gearbox_W_at_that_ratio": 58.96,
+      "at_50_to_1": {
+        "copper_W": 44.86,
+        "gearbox_W": 58.96,
+        "efficiency": 0.75
+      }
+    },
+    "hip_reach_at_pick_m": 0.916,
+    "hand_play_mm_planetary_at_50_to_1": 3.0
+  },
   "min_ratio_for_120_totes_per_hour": {
-    "ankle": 6.3,
-    "knee": 8.5,
-    "hip": 12.7,
-    "shoulder": 10.1,
-    "elbow": 7.1
+    "ankle": 6.0,
+    "knee": 7.5,
+    "hip": 12.0,
+    "shoulder": 9.5,
+    "elbow": 6.3
   },
   "hold_torque_per_side_Nm": {
     "ankle": -28.2,

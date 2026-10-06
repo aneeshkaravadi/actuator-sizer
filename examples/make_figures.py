@@ -90,7 +90,7 @@ fig, ax = plt.subplots(figsize=(7, 4.3))
 ax2 = ax.twinx()
 results["hip_ratio_trade"] = {}
 for mot, c in zip(A.MOTORS, ("C0", "C1", "C2")):
-    ratios, loss, ok = A.sweep_ratio(mot, tau_h, qd_h, qdd_h)
+    ratios, loss, ok = A.sweep_ratio(mot, tau_h, qd_h, qdd_h, gearbox=A.PLANETARY)
     n_speed = mot.w_max / SPEED_FLOOR * 0.8  # keep 20% margin for torque at that speed
     ax.plot(ratios, loss, color=c, label=f"{mot.name.split()[-1]}: Km {mot.km:.2f} N m/sqrt(W)")
     ax.axvline(n_speed, color=c, ls=":", lw=1)
@@ -109,9 +109,61 @@ ax.set_xlabel("gear ratio N")
 ax.set_ylabel("mean copper loss during lift (W, solid)")
 ax2.set_ylabel("reflected rotor inertia N^2 J (kg m^2, dashed)")
 ax2.set_yscale("log")
-ax.set_title("Hip, one side: higher N cuts heat but stiffens and slows the joint\n(dotted = speed limit for a 6 rad/s requirement)", fontsize=9)
+ax.set_title("Hip, one side, planetary gearbox: higher N cuts heat but stiffens and slows the joint\n(dotted = speed limit for a 6 rad/s requirement)", fontsize=9)
 ax.legend(fontsize=7, loc="lower left")
 save(fig, "hip_ratio_trade.png")
+
+# ------------------------------------------------------------------ 2b. gearbox efficiency: winding heat vs total heat
+mot_m = A.MOTORS[1]
+fig, axes = plt.subplots(1, 2, figsize=(11, 4))
+results["gearbox"] = {}
+for gb, c in ((A.PLANETARY, "C0"), (A.STRAIN_WAVE, "C3")):
+    lo, hi = gb.ratio_range
+    ns = np.geomspace(max(5, lo), min(300, hi), 160)
+    copper, gear = [], []
+    for n in ns:
+        dr = A.Drive(mot_m, n, gearbox=gb)
+        copper.append(np.mean(dr.copper_loss(tau_h, qdd_h, qd_h)))
+        gear.append(np.mean(dr.gearbox_loss(tau_h, qd_h)))
+    copper, gear = np.array(copper), np.array(gear)
+    total = copper + gear
+    k = int(np.argmin(total))
+    axes[0].plot(ns, copper, color=c, label=f"{gb.name.split(' (')[0]}: winding (copper)")
+    axes[0].plot(ns, total, color=c, ls="--", label=f"{gb.name.split(' (')[0]}: winding + gearbox")
+    axes[0].plot(ns[k], total[k], "o", color=c)
+    results["gearbox"][gb.name] = {"min_total_heat_ratio": round(float(ns[k]), 1), "min_total_heat_W": round(float(total[k]), 2),
+                                   "copper_W_at_that_ratio": round(float(copper[k]), 2), "gearbox_W_at_that_ratio": round(float(gear[k]), 2)}
+for gb in (A.PLANETARY, A.STRAIN_WAVE):
+    dr = A.Drive(mot_m, 50.0, gearbox=gb)
+    results["gearbox"][gb.name]["at_50_to_1"] = {"copper_W": round(float(np.mean(dr.copper_loss(tau_h, qdd_h, qd_h))), 2),
+                                                 "gearbox_W": round(float(np.mean(dr.gearbox_loss(tau_h, qd_h))), 2),
+                                                 "efficiency": round(gb.efficiency(50.0), 3)}
+axes[0].set_xscale("log")
+axes[0].set_yscale("log")
+axes[0].set_xlabel("gear ratio N")
+axes[0].set_ylabel("mean heat during the lift, hip, one side (W)")
+axes[0].set_title("planetary efficiency steps down at 10:1 and 100:1;\ncounting the gearbox's own heat, the total stops falling past about 100:1", fontsize=9)
+axes[0].legend(fontsize=7)
+ns = np.geomspace(5, 300, 300)
+d.qpos[:] = r.q[0]  # hip-to-hands distance in the pick posture, where a stoop reaches furthest
+mujoco.mj_kinematics(m, d)
+reach = float(np.linalg.norm(d.site("grip").xpos[[0, 2]] - d.body("trunk").xpos[[0, 2]]))
+play = np.array([A.PLANETARY.backlash_arcmin(n) for n in ns])
+axes[1].plot(ns, play, color="C0", label="planetary (10 arcmin per stage, assumed)")
+axes[1].axhline(0.0, color="C3", label="strain wave (essentially none)")
+axes[1].set_xscale("log")
+axes[1].set_xlabel("gear ratio N")
+axes[1].set_ylabel("backlash at the joint (arcmin)")
+ax2 = axes[1].twinx()
+ax2.set_ylabel(f"hand play from hip backlash at {reach:.2f} m reach (mm)")
+axes[1].set_ylim(-0.5, 15)
+ax2.set_ylim(np.radians(-0.5 / 60) * reach * 1000, np.radians(15 / 60) * reach * 1000)
+axes[1].set_title("backlash is set by the last stage, so it barely grows with N", fontsize=9)
+axes[1].legend(fontsize=7, loc="lower right")
+fig.suptitle("Hip, 'M' motor, stoop lift: gearbox efficiency and backlash against ratio", fontsize=10)
+save(fig, "gearbox_tradeoffs.png")
+results["gearbox"]["hip_reach_at_pick_m"] = round(reach, 3)
+results["gearbox"]["hand_play_mm_planetary_at_50_to_1"] = round(float(np.radians(A.PLANETARY.backlash_arcmin(50) / 60) * reach * 1000), 1)
 
 # ------------------------------------------------------------------ 3. tote shuttle: which joint overheats first?
 mot = A.MOTORS[1]
@@ -131,9 +183,13 @@ RATE = 120  # totes per hour: one every 30 s
 def steady_T(j_idx, ratio, rate):
     cycle = 3600.0 / rate
     walk = max(cycle - 2 * lift_T, 0.0) / 2  # carry loaded half the remaining time, return empty the other half
-    dr = A.Drive(mot, ratio)
-    e_lift = np.trapezoid(dr.copper_loss(r.tau[:, j_idx] / 2, qdd[:, j_idx]), r.t)
-    p_avg = (2 * e_lift + walk * dr.copper_loss(hold_tau[j_idx]) + walk * dr.copper_loss(empty_tau[j_idx])) / cycle
+    dr = A.Drive(mot, ratio, gearbox=A.PLANETARY)
+    tau_j, qd_j, qdd_j = r.tau[:, j_idx] / 2, r.qd[:, j_idx], qdd[:, j_idx]
+    e_lift = np.trapezoid(dr.copper_loss(tau_j, qdd_j, qd_j), r.t)
+    # Lowering is the lift played backwards: with no damping the torques are the same at each posture,
+    # but the speeds flip sign, so the load drives the gearbox and friction helps.
+    e_lower = np.trapezoid(dr.copper_loss(tau_j, qdd_j, -qd_j), r.t)
+    p_avg = (e_lift + e_lower + walk * dr.copper_loss(hold_tau[j_idx]) + walk * dr.copper_loss(empty_tau[j_idx])) / cycle
     return A.steady_winding_temperature(mot, p_avg)
 
 

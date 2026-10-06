@@ -52,6 +52,14 @@ $$\tau_m = \frac{\tau_j}{N\eta} + J_m N \ddot q_j$$
 
 **Optimal ratio for a pure inertia.** If $\tau_j = J_L\ddot q$, then $\tau_m = \ddot q\,(J_L/N + J_m N)$. Setting $d/dN = 0$ gives $N^* = \sqrt{J_L/J_m}$: the reflected rotor inertia then equals the load inertia (`test_inertia_matched_ratio_minimizes_loss_for_pure_inertia`).
 
+**Gearbox efficiency against ratio (`actuator.Gearbox`).** A planetary gearbox does at most about 10:1 per stage, so a ratio $N$ needs $k = \lceil \log N/\log 10 \rceil$ stages, and with per-stage efficiency $\eta_s$ (0.97 assumed) the gearbox runs at $\eta = \eta_s^k$. That steps down at 10:1 and 100:1. A strain-wave gearbox does 30 to 160:1 in one stage at a lower, roughly constant efficiency (0.75 assumed).
+
+**Backdriving.** When the load drives the motor ($\tau_j \dot q_j < 0$, like lowering a tote), friction still opposes the motion. If the losses are Coulomb friction, a fraction $1 - \eta$ of the forward input power is lost. Running backwards, the same friction torque subtracts instead of adds, which gives a backwards efficiency $\eta_b = 2 - 1/\eta$. So $\tau_m = \tau_j\eta_b/N$ going down against $\tau_j/(N\eta)$ going up. Below $\eta = 0.5$, $\eta_b \le 0$ and the gearbox self-locks. The heat made in the gearbox is $P_j(1/\eta - 1)$ forward and $|P_j|(1 - \eta_b)$ backward, so motor shaft power always equals joint power plus gearbox heat (`test_gearbox_power_balance_both_ways`). Static holding is taken at the forward value, which is conservative.
+
+**Lowering.** Played backwards, a trajectory has the same $q$ and $\ddot q$ at each posture and $\dot q$ flipped. The Coriolis terms are quadratic in $\dot q$, so with no damping the joint torques are identical, and only the direction of power flow changes. The shuttle's lowering phase reuses the lift's torques with $\dot q \to -\dot q$.
+
+**Backlash.** If each stage has play $b$ at its own output, the play of stage $i$ (counting back from the output) reaches the output divided by the ratio of the $i$ stages after it, $b_\text{out} = \sum_i b/n_s^i$. With 10 arcmin per stage (assumed), two 10:1 stages give 11 arcmin. The last stage sets it, so it barely grows with $N$.
+
 **Gravity-dominated tasks.** These have no such optimum, since the loss just keeps falling as $1/N^2$. The ratio is then capped by the speed needed for *other* tasks and by impact and backdrivability ($N^2 J_m$). That is why the README shows a trade space rather than a single answer.
 
 ## 5. Winding temperature
@@ -86,6 +94,6 @@ $$\tau_\text{gear} = \omega_0\, N^2J_m\sqrt{\frac{k_e}{J_L + N^2J_m}}$$
 
 - Sagittal plane only, with left and right sides lumped and the feet bolted down.
 - Contact forces with the tote and floor are not resolved.
-- Gearbox efficiency is a constant, and friction and backlash are not modeled.
+- Gearbox efficiency comes from a stage count with assumed per-stage values and pure Coulomb friction, with no speed- or load-dependent losses. Backlash is reported but not fed into the dynamics.
 - The motors are illustrative, not catalogue parts.
 - The CoP uses a quasi-static vertical load.
