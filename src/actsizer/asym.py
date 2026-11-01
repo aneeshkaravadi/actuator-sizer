@@ -17,7 +17,7 @@ import numpy as np
 from scipy.optimize import least_squares
 
 from .lift import FOOT_X, min_jerk
-from .model import Body, _capsule_inertia
+from .model import Body, tote_inertia
 
 JOINTS_ASYM = ["ankle", "knee", "hip_roll", "hip", "trunk_yaw", "shoulder", "elbow"]
 SHOULDER_Y = 0.20  # m, half the shoulder width of a 1.73 m adult (biacromial breadth ~0.4 m)
@@ -40,27 +40,27 @@ def build_asym_mjcf(b: Body | None = None, shoulder_y: float = SHOULDER_Y) -> st
   <worldbody>
     <body name="shank" pos="0 0 0.08">
       <joint name="ankle" type="hinge" axis="0 1 0"/>
-      <inertial pos="0 0 {cs:.5f}" mass="{ms:.4f}" diaginertia="{_capsule_inertia(ms, Ls, 0.05)}"/>
+      <inertial pos="0 0 {Ls - cs:.5f}" mass="{ms:.4f}" diaginertia="{b.inertia(b.shank, 0.05)}"/>
       <body name="thigh" pos="0 0 {Ls:.5f}">
         <joint name="knee" type="hinge" axis="0 1 0"/>
-        <inertial pos="0 0 {ct:.5f}" mass="{mt:.4f}" diaginertia="{_capsule_inertia(mt, Lt, 0.06)}"/>
+        <inertial pos="0 0 {Lt - ct:.5f}" mass="{mt:.4f}" diaginertia="{b.inertia(b.thigh, 0.06)}"/>
         <body name="trunk" pos="0 0 {Lt:.5f}">
           <joint name="hip_roll" type="hinge" axis="1 0 0"/>
           <joint name="hip" type="hinge" axis="0 1 0"/>
           <joint name="trunk_yaw" type="hinge" axis="0 0 1"/>
-          <inertial pos="0 0 {ck:.5f}" mass="{mk:.4f}" diaginertia="{_capsule_inertia(mk, Lk, 0.12)}"/>
+          <inertial pos="0 0 {ck:.5f}" mass="{mk:.4f}" diaginertia="{b.inertia(b.trunk, 0.12)}"/>
           <body name="free_arm" pos="0 {-shoulder_y:.4f} {Lk:.5f}">
             <inertial pos="0 0 {-arm_com:.5f}" mass="{mu + mf:.4f}" diaginertia="0.02 0.02 0.002"/>
           </body>
           <body name="upper_arm" pos="0 {shoulder_y:.4f} {Lk:.5f}">
             <joint name="shoulder" type="hinge" axis="0 1 0"/>
-            <inertial pos="0 0 {-cu:.5f}" mass="{mu:.4f}" diaginertia="{_capsule_inertia(mu, Lu)}"/>
+            <inertial pos="0 0 {-cu:.5f}" mass="{mu:.4f}" diaginertia="{_half(b.inertia(b.upper_arm, 0.035))}"/>
             <body name="forearm" pos="0 0 {-Lu:.5f}">
               <joint name="elbow" type="hinge" axis="0 1 0"/>
-              <inertial pos="0 0 {-cf:.5f}" mass="{mf:.4f}" diaginertia="{_capsule_inertia(mf, Lf)}"/>
+              <inertial pos="0 0 {-cf:.5f}" mass="{mf:.4f}" diaginertia="{_half(b.inertia(b.forearm, 0.03))}"/>
               <body name="tote" pos="0 0 {-grip:.5f}">
                 <site name="grip" pos="0 0 0" size="0.02"/>
-                <inertial pos="0.0 0 -0.10" mass="{b.tote_mass:.3f}" diaginertia="0.30 0.25 0.20"/>
+                <inertial pos="0.0 0 -0.10" mass="{b.tote_mass:.3f}" diaginertia="{tote_inertia(b.tote_mass)}"/>
               </body>
             </body>
           </body>
@@ -69,6 +69,11 @@ def build_asym_mjcf(b: Body | None = None, shoulder_y: float = SHOULDER_Y) -> st
     </body>
   </worldbody>
 </mujoco>"""
+
+
+def _half(diaginertia: str) -> str:
+    """One arm's inertia: Body's arm segments are both arms together."""
+    return " ".join(f"{float(v) / 2:.6f}" for v in diaginertia.split())
 
 
 def load_asym(b: Body | None = None, shoulder_y: float = SHOULDER_Y):
