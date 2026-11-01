@@ -100,4 +100,4 @@ The motors are three maxon frameless kits, with every number from maxon's produc
 
 ---
 
-Aneesh Karavadi, dual-enrolled engineering student at UNT through TAMS. I do most of my CAD in SolidWorks, Fusion and Onshape. I used Claude Code to write a lot of the implementation, but the questions, the checks and the conclusions are mine.
+Aneesh Karavadi, dual-enrolled engineering student at UNT through TAMS. I do most of my CAD in SolidWorks, Fusion and Onshape. I used Claude Code to write a lot of the implementation, but I picked the problems and the checks, and the conclusions are mine.
