@@ -326,3 +326,59 @@ def test_twisting_lift_work_equals_potential_energy_gain():
 
     work = np.trapezoid((r.tau * r.qd).sum(axis=1), r.t)
     assert work == pytest.approx(pe(r.q[-1]) - pe(r.q[0]), rel=0.01)
+
+
+# ---------------------------------------------------------------- human walking loads
+
+def test_walking_data_carry_the_body_weight_over_a_stride():
+    """Walking at a steady speed, the floor holds the body up on average: one leg's vertical force,
+    averaged over its stride, is half the weight. This checks that the fixture really is per kg of
+    body mass and covers one whole stride (it is the dataset's own force-plate data)."""
+    from actsizer import gait
+    s = gait.load_stride()
+    assert np.mean(s.data["grf_vertical"][:-1]) == pytest.approx(G / 2, rel=0.03)
+    assert 0.9 < s.stride_time < 1.2  # a comfortable adult stride
+
+
+def test_walking_moments_keep_their_physical_meaning_in_the_robot_convention():
+    """Early stance the hip pushes the trunk back (extensor) and late stance the ankle pushes off
+    (plantarflexor). In the MuJoCo model a negative hip torque holds a forward-leaning trunk up and a
+    negative ankle torque holds a forward-leaning body up, so both must come out negative."""
+    from actsizer import gait
+    s = gait.load_stride()
+    robot = {}
+    for j in ("hip", "ankle"):
+        _, swing, _, _ = s.joint(j, 1.0)
+        mean = gait.TO_ROBOT[j][0] * s.data[gait.COLUMNS[j][0]][:-1].mean()
+        robot[j] = swing + mean  # the whole moment, in the robot's signs
+    assert robot["hip"][2:12].mean() < -0.3 and robot["ankle"][40:55].mean() < -1.0
+    m, d = model.load()
+    for q, j in (([0, 0, 0.5, 0, 0], 2), ([0.2, 0, 0, 0, 0], 0)):
+        d.qpos[:], d.qvel[:], d.qacc[:] = q, 0, 0
+        mujoco.mj_inverse(m, d)
+        assert d.qfrc_inverse[j] < 0
+    # angles too: a flexed hip at heel strike, and a bent knee (negative in the robot) in swing
+    assert s.data["hip_angle_flx"][0] > 20 and gait.TO_ROBOT["knee"][1] * s.data["knee_angle_flx"][70] < -30
+
+
+def test_walking_speeds_integrate_back_to_the_angles():
+    from actsizer import gait
+    s = gait.load_stride()
+    for j in ("hip", "knee", "ankle"):
+        t, _, qd, qdd = s.joint(j, 1.0)
+        ang = gait.TO_ROBOT[j][1] * np.radians(s.data[gait.COLUMNS[j][1]][:-1])
+        dt = t[1] - t[0]
+        rebuilt = ang[0] + np.concatenate([[0], np.cumsum(0.5 * (qd[1:] + qd[:-1]) * dt)])
+        assert rebuilt == pytest.approx(ang, abs=0.01)
+        assert np.mean(qd) == pytest.approx(0.0, abs=1e-9) and np.mean(qdd) == pytest.approx(0.0, abs=1e-9)
+
+
+def test_walking_swing_adds_its_mean_square_to_the_holding_loss():
+    """Forward-driven, the copper loss of (hold + zero-mean swing) averages to the hold's loss plus the
+    swing's mean square: the cross term vanishes over a stride."""
+    from actsizer import gait
+    _, tau, _, _ = gait.load_stride().joint("hip", 98.0)
+    dr = A.Drive(A.MOTORS[1], 40.0, efficiency=0.94)
+    hold = -50.0
+    expected = (hold**2 + np.mean(tau**2)) * dr.motor.r / (dr.motor.kt * 40.0 * 0.94) ** 2
+    assert np.mean(dr.copper_loss(hold + tau)) == pytest.approx(expected, rel=1e-9)
