@@ -362,6 +362,11 @@ results["shuttle"] = {"rate_per_hour": RATE, "lift_s": round(float(lift_T), 2), 
 squat_cycle = 2 * lifts["squat"].t[-1] + 2 * WALK_T  # same walks, squat lifts instead of stoops
 results["shuttle"]["cycle_with_squat_lifts_s"] = round(float(squat_cycle), 1)
 results["shuttle"]["totes_per_hour_with_squat_lifts"] = round(float(3600 / squat_cycle))
+results["walking_data"] = {"stride_s": STRIDE.stride_time,
+                           "one_leg_vertical_floor_force_mean_N_per_kg": round(float(np.mean(STRIDE.data["grf_vertical"][:-1])), 2),
+                           "peak_joint_speed_rad_s": {j: round(float(np.abs(STRIDE.joint(j, 1.0)[2]).max()), 2) for j in LEGS},
+                           "mean_curve_swing_rms_Nm_per_kg": {j: round(float(np.sqrt(np.mean(STRIDE.joint(j, 1.0)[1] ** 2))), 3) for j in LEGS},
+                           "per_person_swing_rms_Nm_per_kg_min_mean_max": STRIDE.zero_mean_rms_range}
 results["min_ratio_for_120_totes_per_hour"] = {}
 results["min_ratio_for_120_totes_per_hour_walking_as_standing"] = {}
 for i, j in enumerate(J):
@@ -558,8 +563,8 @@ for n_hip, c in ((20, "C0"), (50, "C1"), (120, "C2")):
             round(float(j_ref * np.sqrt(K_ENV / (jl + j_ref)))), round(A.impact_peak_torque(jl, j_ref, 3000.0, K_ENV, 1.0))]
 ax.set_xlabel("series stiffness k (N m/rad)")
 ax.set_ylabel("peak gearbox torque (N m)")
-ax.set_title("Hip, carrying the tote, hits a stiff obstacle at 1 rad/s: only a soft spring protects the gearbox,\n"
-             "and a medium one makes the shock worse than none (dotted: no spring)", fontsize=9)
+ax.set_title("Hip, carrying the tote, hits a stiff obstacle at 1 rad/s: only a soft spring\n"
+             "protects the gearbox, and a medium one is worse than none (dotted: no spring)", fontsize=9)
 ax.legend(fontsize=8)
 save(fig, "sea_impact.png")
 results["sea_static_deflection_rad_at_peak_hip_torque"] = {k: round(float(np.abs(tau_h).max() / k), 3) for k in (1000, 3000, 10000)}
