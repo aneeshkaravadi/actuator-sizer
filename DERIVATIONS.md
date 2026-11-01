@@ -30,11 +30,15 @@ Velocity and acceleration are zero at both ends, so the motion starts and stops 
 
 ## 3. Balance: center of pressure
 
-The feet are fixed at the ankle, so the floor must supply the ankle torque through a shift of the center of pressure (CoP):
+The feet are fixed at the ankle, so the floor must supply the ankle torque through a shift of the center of pressure (CoP). The foot is massless, so the floor's force $(F_x, F_z)$, acting at the CoP with no moment there, has to make the same moment about the ankle as the torque the foot puts into the shank. With the ankle a height $h$ above the floor (0.08 m in the model):
 
-$$x_\text{CoP} = -\tau_\text{ankle} / F_z, \qquad F_z \approx m_\text{total}\,g$$
+$$\tau_\text{ankle} = -h F_x - x_\text{CoP} F_z \quad\Rightarrow\quad x_\text{CoP} = -\frac{\tau_\text{ankle} + h F_x}{F_z}, \qquad (F_x, F_z) = M(\ddot x_c,\ g + \ddot z_c)$$
 
-The lift is **balanced** only if $x_\text{CoP}$ stays between heel and toe at every instant. A static forward lean puts the CoP exactly under the center of mass, which is a sign check.
+The floor force is not just the weight. It's the whole body's mass times its center of mass's acceleration plus $g$, which MuJoCo gives as the force the world puts into the shank (`cfrc_int` after `mj_rnePostConstraint`). In a fast stoop it swings between 0.85 and 1.16 times the weight. For a single point mass this reduces to the familiar $x_c - z_c\ddot x_c/(g + \ddot z_c)$.
+
+The lift is **balanced** only if $x_\text{CoP}$ stays between heel and toe at every instant.
+
+**Checks:** a still posture puts the CoP exactly under the center of mass. During a lift, the CoP matches the zero-moment point worked out from nothing but how each body moves (Kajita et al.), $x_\text{ZMP} = [\sum m_i (x_i(g + \ddot z_i) - z_i\ddot x_i) - \sum I_i\ddot\theta_i] / \sum m_i(g + \ddot z_i)$, with each body's acceleration taken by finite differences of the planned motion, to 0.2 mm (`test_center_of_pressure_matches_the_multibody_zmp_from_kinematics_alone`). My first version used $x_\text{CoP} = -\tau_\text{ankle}/(Mg)$, which is off by up to 29 mm in a fast stoop and fails that test.
 
 The fastest balanced lift is found by bisection on the duration $T$.
 
@@ -128,5 +132,4 @@ The legs stay lumped, but three hinges at the hip let the trunk lean sideways (r
 - Contact forces with the tote and floor are not resolved.
 - Gearbox efficiency comes from a stage count with assumed per-stage values and pure Coulomb friction, with no speed- or load-dependent losses. Backlash is reported but not fed into the dynamics.
 - The motors are maxon frameless kits, but their thermal resistance to ambient is for maxon's reference mounting, and a real joint housing would differ.
-- The CoP uses a quasi-static vertical load.
 - Push recovery uses a point-mass pendulum at constant height, with no reaction delay and no swing-leg dynamics, so its speeds are a lower bound.

@@ -61,6 +61,7 @@ class LiftResult:
     tau: np.ndarray  # joint torque, both sides together (N m)
     cop_x: np.ndarray  # center of pressure under the feet (m from ankle)
     style: str
+    f_floor: np.ndarray | None = None  # (n, 2) force the floor pushes on the feet, (x forward, z up), N
 
     @property
     def power(self) -> np.ndarray:
@@ -85,14 +86,31 @@ def simulate_lift(style: str = "squat", body: Body | None = None, duration: floa
     Q, Qd, Qdd = min_jerk(q_start, q_end, duration, t)
     tau = np.zeros_like(Q)
     cop = np.zeros(n)
-    total_mass = m.body_mass.sum()
+    force = np.zeros((n, 2))
+    h = ankle_height(m, d)
     for k in range(n):
         d.qpos[:], d.qvel[:], d.qacc[:] = Q[k], Qd[k], Qdd[k]
         mujoco.mj_inverse(m, d)
         tau[k] = d.qfrc_inverse
-        # The floor supplies the ankle torque through the foot, so the center of
-        # pressure sits at x = tau_ankle / F_z ahead of the ankle (a positive torque
-        # about +y pitches the body forward... and must be reacted by pressure toward
-        # the toe). F_z is taken quasi-statically as the total weight.
-        cop[k] = -tau[k, 0] / (total_mass * 9.81)
-    return LiftResult(t, Q, Qd, tau, cop, style)
+        # The force the world puts into the shank through the ankle, which the (massless,
+        # bolted-down) foot gets from the floor: M (a_com + g), not just the weight.
+        mujoco.mj_rnePostConstraint(m, d)
+        force[k] = d.cfrc_int[1][[3, 5]]
+        cop[k] = center_of_pressure(tau[k, 0], force[k, 0], force[k, 1], h)
+    return LiftResult(t, Q, Qd, tau, cop, style, force)
+
+
+def ankle_height(m, d) -> float:
+    """Height of the ankle joint above the floor (the floor plane is z = 0)."""
+    mujoco.mj_kinematics(m, d)
+    return float(d.xanchor[m.joint("ankle").id][2])
+
+
+def center_of_pressure(tau_ankle, fx, fz, h):
+    """Where the floor's force acts under the foot, measured forward from the ankle.
+
+    The foot is massless, so the floor's force (fx, fz) at the center of pressure, with no
+    moment there, has to make the same moment about the ankle (h above the floor) as the
+    torque the foot puts into the shank:  tau_ankle = -h fx - x fz.
+    """
+    return -(np.asarray(tau_ankle) + h * np.asarray(fx)) / np.asarray(fz)

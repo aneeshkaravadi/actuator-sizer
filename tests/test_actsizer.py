@@ -40,11 +40,62 @@ def test_min_jerk_boundary_conditions():
 
 
 def test_lift_reaches_targets_and_stoop_is_balanced():
-    r = lift.simulate_lift("stoop", duration=1.6)
+    r = lift.simulate_lift("stoop", duration=2.0)
     m, d = model.load()
     assert np.allclose(model.grip_position(m, d, r.q[0]), [0.35, 0.25], atol=0.02)
     assert np.allclose(model.grip_position(m, d, r.q[-1]), [0.30, 0.95], atol=0.02)
     assert r.balanced()
+
+
+def test_center_of_pressure_matches_the_multibody_zmp_from_kinematics_alone():
+    """The CoP from the ankle torque and floor force has to match the zero-moment point worked out
+    from nothing but how each body moves (Kajita et al.): with z measured from the floor,
+        x_zmp = [sum m (x (g + z'') - z x'') - sum I_y theta''] / sum m (g + z'').
+    Body accelerations come from finite differences of the planned motion, not from MuJoCo's dynamics."""
+    T = 1.5
+    r = lift.simulate_lift("stoop", duration=T, n=61)
+    m, d = model.load()
+    bodies = range(1, m.nbody)
+    assert np.allclose(m.body_iquat[1:], [1, 0, 0, 0])  # inertia axes line up with the body frames
+    chain = {b: [m.jnt_qposadr[j] for j in range(m.njnt) if _is_ancestor(m, m.jnt_bodyid[j], b)] for b in bodies}
+
+    def state(t):
+        q, _, qdd = lift.min_jerk(r.q[0], r.q[-1], T, np.atleast_1d(t))
+        d.qpos[:] = q[0]
+        mujoco.mj_kinematics(m, d)
+        return d.xipos[1:, [0, 2]].copy(), qdd[0]
+
+    h = 1e-4
+    for k in range(5, 56, 5):
+        t = r.t[k]
+        (p0, qdd), (pm, _), (pp, _) = state(t), state(t - h), state(t + h)
+        acc = (pp - 2 * p0 + pm) / h**2
+        mass = m.body_mass[1:]
+        alpha = np.array([qdd[chain[b]].sum() for b in bodies])  # planar: a body's pitch is the sum of the joints below it
+        num = np.sum(mass * (p0[:, 0] * (G + acc[:, 1]) - p0[:, 1] * acc[:, 0])) - np.sum(m.body_inertia[1:, 1] * alpha)
+        x_zmp = num / np.sum(mass * (G + acc[:, 1]))
+        assert r.cop_x[k] == pytest.approx(x_zmp, abs=2e-4)
+
+
+def _is_ancestor(m, a, b):
+    while b > 0:
+        if b == a:
+            return True
+        b = m.body_parentid[b]
+    return False
+
+
+def test_center_of_pressure_of_a_still_posture_is_under_the_center_of_mass():
+    m, d = model.load()
+    q = np.array([0.1, -0.3, 0.6, -0.4, -0.2])
+    tau = np.zeros(5)
+    d.qpos[:], d.qvel[:], d.qacc[:] = q, 0, 0
+    mujoco.mj_inverse(m, d)
+    mujoco.mj_rnePostConstraint(m, d)
+    fx, fz = d.cfrc_int[1][[3, 5]]
+    tau[:] = d.qfrc_inverse
+    assert fx == pytest.approx(0.0, abs=1e-9) and fz == pytest.approx(m.body_mass.sum() * G, rel=1e-9)
+    assert lift.center_of_pressure(tau[0], fx, fz, lift.ankle_height(m, d)) == pytest.approx(model.com_x(m, d, q), abs=1e-9)
 
 
 def test_lift_work_equals_potential_energy_gain():
