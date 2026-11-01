@@ -28,7 +28,7 @@ I expected to find an optimal gear ratio and got something else. For a slow lift
 
 <img src="docs/figures/hip_ratio_trade.png" width="49%"> <img src="docs/figures/shuttle_thermal.png" width="49%">
 
-On the right, the same mid-size motor at every joint (maxon's EC frameless HT 76 M, next section) does 120 totes an hour (lift, carry, lower, walk back). The hip overheats first, below about 51:1. The ankle is next at 36:1, because walking loads it far more than standing does (the dotted lines are what I got when I treated walking as standing), and then the shoulder holding the tote out in front at 35:1. That rules out the low ratios that make a robot backdrivable and safe around people (6 to 10:1) for a motor this size.
+On the right, the same mid-size motor at every joint (maxon's EC frameless HT 76 M, next section) does 120 totes an hour (lift, carry, lower, walk back) in 30 °C air, which is my assumption for a warm warehouse. The hip overheats first, below about 51:1. The ankle is next at 36:1, because walking loads it far more than standing does (the dotted lines are what I got when I treated walking as standing), and then the shoulder holding the tote out in front at 35:1. That rules out the low ratios that make a robot backdrivable and safe around people (6 to 10:1) for a motor this size.
 
 ## Real motors instead of made-up ones
 

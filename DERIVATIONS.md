@@ -84,7 +84,7 @@ The resistance of copper rises with temperature ($\alpha = 0.00393$/K, which max
 
 $$T = \frac{T_\text{amb} + R_{th}P(1 - 25\alpha) + R_{th}Q}{1 - R_{th}P\alpha}$$
 
-This goes to infinity as $R_{th}P\alpha \to 1$: **thermal runaway**, where heating grows faster than cooling.
+This goes to infinity as $R_{th}P\alpha \to 1$: **thermal runaway**, where heating grows faster than cooling. The shuttle uses $T_\text{amb}$ = 30 °C (an assumption, 5 K warmer than maxon's rating conditions); the check against maxon's rating below uses 25 °C.
 
 **Two nodes.** maxon's datasheets give two thermal resistances (winding to housing, $R_{wh}$, and housing to ambient, $R_{ha}$) and two time constants. They describe a winding with heat capacity $C_w = \tau_w/R_{wh}$ sitting on a housing with $C_h = \tau_m/R_{ha}$:
 
