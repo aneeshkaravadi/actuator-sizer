@@ -502,19 +502,47 @@ fig.suptitle("Lifting with one hand doubles the loaded arm's torque and adds sid
 save(fig, "asymmetric_lifts.png")
 
 # ------------------------------------------------------------------ 4. series elastic actuator: impact
-j_link = 1.5  # kg m^2, rough trunk + arms about the hip
+# The link is everything above the hip: the hip's own entry in the model's mass matrix (the other joints
+# held), per side, from inverse dynamics with a unit hip acceleration minus the same with none.
+
+
+def hip_link_inertia(mm, dd, q):
+    f = []
+    for acc in (0.0, 1.0):
+        dd.qpos[:], dd.qvel[:], dd.qacc[:] = q, 0.0, 0.0
+        dd.qacc[J.index("hip")] = acc
+        mujoco.mj_inverse(mm, dd)
+        f.append(dd.qfrc_inverse[J.index("hip")])
+    return float(f[1] - f[0]) / 2
+
+
+link_by_posture = {"standing, no tote": hip_link_inertia(m_empty, d_empty, np.zeros(5)),
+                   "carrying the tote (end of the lift)": hip_link_inertia(m, d, r.q[-1]),
+                   "stooped over the tote (start of the lift)": hip_link_inertia(m, d, r.q[0])}
+j_link = link_by_posture["carrying the tote (end of the lift)"]  # walking into a shelf with the tote
 K_ENV = 2e5  # N m/rad: a stiff obstacle (rigid shelf, floor)
 ks = np.geomspace(100, 1e6, 50)
 fig, ax = plt.subplots(figsize=(6.5, 4))
-results["sea_impact"] = {}
+results["sea_impact"] = {"link_inertia_per_side_kgm2": {k: round(v, 2) for k, v in link_by_posture.items()},
+                         "figure_uses": "carrying the tote (end of the lift)"}
 for n_hip, c in ((20, "C0"), (50, "C1"), (120, "C2")):
     j_ref = mot.j_rotor * n_hip**2
     peaks = np.array([A.impact_peak_torque(j_link, j_ref, k, K_ENV, 1.0) for k in ks])
+    rigid = 1.0 * j_ref * np.sqrt(K_ENV / (j_link + j_ref))  # no spring at all (DERIVATIONS section 6)
     ax.loglog(ks, peaks, color=c, label=f"N = {n_hip} (reflected rotor {j_ref:.2f} kg m^2)")
-    results["sea_impact"][f"N{n_hip}"] = {"rigid_Nm": round(float(peaks[-1])), "k_3000_Nm": round(float(np.interp(3000, ks, peaks)))}
+    ax.axhline(rigid, color=c, ls=":", lw=1)
+    worse = np.where(peaks >= rigid)[0]
+    results["sea_impact"][f"N{n_hip}"] = {"rigid_Nm": round(float(rigid)), "k_1e6_Nm": round(float(peaks[-1])),
+                                          "k_3000_Nm": round(A.impact_peak_torque(j_link, j_ref, 3000.0, K_ENV, 1.0)),
+                                          "spring_helps_only_below_k": round(float(ks[worse[0]]), -1) if len(worse) else None,
+                                          "worst_k": round(float(ks[np.argmax(peaks)]), -2), "worst_Nm": round(float(peaks.max()))}
+    for name, jl in link_by_posture.items():
+        results["sea_impact"].setdefault("rigid_vs_k3000_Nm_by_posture", {}).setdefault(name, {})[f"N{n_hip}"] = [
+            round(float(j_ref * np.sqrt(K_ENV / (jl + j_ref)))), round(A.impact_peak_torque(jl, j_ref, 3000.0, K_ENV, 1.0))]
 ax.set_xlabel("series stiffness k (N m/rad)")
 ax.set_ylabel("peak gearbox torque (N m)")
-ax.set_title("Hip hits a stiff obstacle at 1 rad/s: the spring protects the gearbox,\nand matters more the higher the gear ratio", fontsize=9)
+ax.set_title("Hip, carrying the tote, hits a stiff obstacle at 1 rad/s: only a soft spring protects the gearbox,\n"
+             "and a medium one makes the shock worse than none (dotted: no spring)", fontsize=9)
 ax.legend(fontsize=8)
 save(fig, "sea_impact.png")
 results["sea_static_deflection_rad_at_peak_hip_torque"] = {k: round(float(np.abs(tau_h).max() / k), 3) for k in (1000, 3000, 10000)}
