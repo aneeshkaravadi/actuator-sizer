@@ -479,6 +479,8 @@ for name, lf in (("one-handed", one), ("one-handed, from the side", twist)):
                           "shoulder": pk["shoulder"], "elbow": pk["elbow"]}
 results["asymmetric_lifts_peak_Nm"] = {k: {j: round(v, 1) for j, v in row.items()} for k, row in per_actuator.items()}
 results["asymmetric_lifts_note"] = "hip roll and trunk twist are both sides together; the rest per actuator"
+TWIST_DEG = float(np.degrees(abs(twist.q[0, asym.JOINTS_ASYM.index("trunk_yaw")])))
+results["side_pick_trunk_twist_deg"] = round(TWIST_DEG)
 fig, axes = plt.subplots(1, 2, figsize=(11, 3.8))
 jn = list(per_actuator["two-handed"])
 xx = np.arange(len(jn))
@@ -494,7 +496,7 @@ for j, c in (("hip_roll", "C1"), ("trunk_yaw", "C2"), ("shoulder", "C0")):
     axes[1].plot(twist.t, twist.tau[:, i], color=c, label=j.replace("_", " ").replace("yaw", "twist"))
 axes[1].set_xlabel("time (s)")
 axes[1].set_ylabel("joint torque (N m)")
-axes[1].set_title("one-handed, picked from the side (44 deg of trunk twist)", fontsize=9)
+axes[1].set_title(f"one-handed, picked from the side ({TWIST_DEG:.0f} deg of trunk twist)", fontsize=9)
 axes[1].legend(fontsize=8)
 fig.suptitle("Lifting with one hand doubles the loaded arm's torque and adds sideways and twisting loads", fontsize=10)
 save(fig, "asymmetric_lifts.png")
