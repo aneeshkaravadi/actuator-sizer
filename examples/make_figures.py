@@ -118,6 +118,9 @@ for cap, c in ((0.5, "C3"), (0.6, "C1"), (0.8, "C2"), (np.inf, "C0")):
     results["push_recovery"]["by_step_cap"][label] = {f"{v:.2f}": round(float(R.required_hip_speed(pend, v, cap)[0]), 2)
                                                       for v in (1.0, 1.25, 1.5)}
 SPEED_FLOOR, t_swing, step_len = R.required_hip_speed(pend, DESIGN_PUSH, DESIGN_STEP)
+quick = R.required_hip_speed(pend, DESIGN_PUSH, 0.5, swing_times=np.linspace(0.03, 0.8, 1541))
+results["push_recovery"]["half_meter_step_if_swings_under_80_ms_were_allowed"] = {
+    "hip_speed_rad_s": round(quick[0], 2), "swing_s": round(quick[1], 3), "min_swing_assumed_s": R.MIN_SWING}
 results["push_recovery"]["design_case"] = {"push_m_s": DESIGN_PUSH, "max_step_m": DESIGN_STEP,
                                            "impulse_Ns": round(DESIGN_PUSH * float(model.load(model.Body(tote_mass=0.0))[0].body_mass[1:].sum())),
                                            "hip_speed_rad_s": round(SPEED_FLOOR, 2), "swing_s": round(t_swing, 3),

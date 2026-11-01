@@ -24,6 +24,7 @@ from .lift import FOOT_X
 from .model import Body, load
 
 MIN_JERK_PEAK = 15.0 / 8.0  # peak over average speed of a minimum-jerk move
+MIN_SWING = 0.08  # s, the quickest recovery step I allow (an assumption, not a measured limit)
 
 
 @dataclass(frozen=True)
@@ -84,11 +85,11 @@ def required_hip_speed(pend: Pendulum, v0: float, max_step: float = np.inf, reac
     """Slowest hip that still recovers from a push of v0 (m/s) in one step no longer than max_step.
 
     Returns (hip speed rad/s, swing time s, step length m). (0, 0, 0) if the ankles are enough,
-    and (inf, nan, nan) if no single step that short can do it.
+    and (inf, nan, nan) if no single step that short, swung in at least MIN_SWING, can do it.
     """
     if pend.ankles_suffice(v0):
         return 0.0, 0.0, 0.0
-    swing_times = np.linspace(0.08, 0.8, 1441) if swing_times is None else swing_times
+    swing_times = np.linspace(MIN_SWING, 0.8, 1441) if swing_times is None else swing_times
     speed, foot, _ = step(pend, v0, swing_times, reaction)
     ok = (foot <= max_step) & np.isfinite(speed) & (speed > 0)
     if not ok.any():
