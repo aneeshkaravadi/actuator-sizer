@@ -184,12 +184,17 @@ for gb, c in ((A.PLANETARY, "C0"), (A.STRAIN_WAVE, "C3")):
         gear.append(np.mean(dr.gearbox_loss(tau_h, qd_h)))
     copper, gear = np.array(copper), np.array(gear)
     total = copper + gear
-    k = int(np.argmin(total))
     axes[0].plot(ns, copper, color=c, label=f"{gb.name.split(' (')[0]}: winding (copper)")
     axes[0].plot(ns, total, color=c, ls="--", label=f"{gb.name.split(' (')[0]}: winding + gearbox")
-    axes[0].plot(ns[k], total[k], "o", color=c)
-    results["gearbox"][gb.name] = {"min_total_heat_ratio": round(float(ns[k]), 1), "min_total_heat_W": round(float(total[k]), 2),
-                                   "copper_W_at_that_ratio": round(float(copper[k]), 2), "gearbox_W_at_that_ratio": round(float(gear[k]), 2)}
+    most = np.where(gear > copper)[0]
+    results["gearbox"][gb.name] = {"sweep": [round(float(ns[0]), 1), round(float(ns[-1]), 1)],
+                                   "total_W_at_sweep_end": round(float(total[-1]), 2),
+                                   "total_still_falling_at_sweep_end": bool(total[-1] < total[-2]),
+                                   "gearbox_makes_most_of_the_heat_from": round(float(ns[most[0]]), 1) if len(most) else None}
+for n_step in (100.0, 101.0):
+    dr = A.Drive(mot_m, n_step, gearbox=A.PLANETARY)
+    results["gearbox"][A.PLANETARY.name][f"total_W_at_{n_step:.0f}_to_1"] = round(
+        float(np.mean(dr.copper_loss(tau_h, qdd_h, qd_h)) + np.mean(dr.gearbox_loss(tau_h, qd_h))), 2)
 for gb in (A.PLANETARY, A.STRAIN_WAVE):
     dr = A.Drive(mot_m, 50.0, gearbox=gb)
     results["gearbox"][gb.name]["at_50_to_1"] = {"copper_W": round(float(np.mean(dr.copper_loss(tau_h, qdd_h, qd_h))), 2),
@@ -199,7 +204,8 @@ axes[0].set_xscale("log")
 axes[0].set_yscale("log")
 axes[0].set_xlabel("gear ratio N")
 axes[0].set_ylabel("mean heat during the lift, hip, one side (W)")
-axes[0].set_title("planetary efficiency steps down at 10:1 and 100:1;\ncounting the gearbox's own heat, the total stops falling past about 100:1", fontsize=9)
+axes[0].set_title("planetary efficiency steps down at 10:1 and 100:1; counting the gearbox's own heat,\n"
+                  "the total jumps at each new stage but keeps falling", fontsize=9)
 axes[0].legend(fontsize=7)
 ns = np.geomspace(5, 300, 300)
 d.qpos[:] = r.q[0]  # hip-to-hands distance in the pick posture, where a stoop reaches furthest
