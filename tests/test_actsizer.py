@@ -49,7 +49,8 @@ def test_lift_reaches_targets_and_stoop_is_balanced():
 
 def test_center_of_pressure_matches_the_multibody_zmp_from_kinematics_alone():
     """The CoP from the ankle torque and floor force has to match the zero-moment point worked out
-    from nothing but how each body moves (Kajita et al.): with z measured from the floor,
+    from nothing but how each body moves (Newton-Euler for the whole body about a point on the floor),
+    with z measured from the floor,
         x_zmp = [sum m (x (g + z'') - z x'') - sum I_y theta''] / sum m (g + z'').
     Body accelerations come from finite differences of the planned motion, not from MuJoCo's dynamics."""
     T = 1.5
@@ -255,8 +256,8 @@ def test_maxon_rated_current_brings_the_winding_to_its_limit(d):
     """maxon's nominal current is the continuous current that takes the winding to its maximum
     temperature at 25 C ambient (catalog p. 92). Running the thermal model at that current and the
     nominal speed is an independent check on the thermal resistances, once the iron losses are in:
-    within 10 K of 155 C, about the 8% spread between the two R_th1 values maxon publishes
-    (product page against catalog). Copper loss alone comes out 45 to 56 K short."""
+    within 10 K of 155 C, 8% of the 130 K rise (maxon's product page and catalog differ by 8% on
+    R_th1 alone). The misses are -2, +6 and +9 K. Copper loss alone comes out 47 to 56 K short."""
     assert d.rated_winding_temperature() == pytest.approx(d.max_winding_temp, abs=10.0)
     assert d.rated_winding_temperature(iron=False) < d.max_winding_temp - 40.0
 

@@ -1,237 +1,583 @@
 {
   "fastest_balanced_lift_s": {
-    "squat": 3.8747386574745177,
-    "stoop": 1.4733148396015165
+    "squat": 4.546486473083496,
+    "stoop": 1.7243473112583156
+  },
+  "fastest_balanced_lift_s_with_my_first_cop": {
+    "squat": 4.211806297302244,
+    "stoop": 1.5542602121829987
   },
   "lift_peaks_both_sides": {
     "squat": {
       "ankle": {
-        "peak_torque_Nm": 65.46177580244978,
-        "rms_torque_Nm": 48.75996888862932,
-        "peak_speed_rad_s": 0.25338759355039636,
-        "peak_power_W": 16.541731250420757
+        "peak_torque_Nm": 63.49897691508789,
+        "rms_torque_Nm": 47.22782893027795,
+        "peak_speed_rad_s": 0.21709139707304953,
+        "peak_power_W": 13.745924765464274
       },
       "knee": {
-        "peak_torque_Nm": 162.8742347806059,
-        "rms_torque_Nm": 112.21038873169512,
-        "peak_speed_rad_s": 1.1330983297625974,
-        "peak_power_W": 172.25947111367444
+        "peak_torque_Nm": 166.4246545144713,
+        "rms_torque_Nm": 114.3660029071272,
+        "peak_speed_rad_s": 0.9660238747575399,
+        "peak_power_W": 150.0070195416456
       },
       "hip": {
-        "peak_torque_Nm": 205.6170991070378,
-        "rms_torque_Nm": 157.52790678184235,
-        "peak_speed_rad_s": 1.0591552425354454,
-        "peak_power_W": 165.18431196936413
+        "peak_torque_Nm": 208.16025262660372,
+        "rms_torque_Nm": 159.28602199820747,
+        "peak_speed_rad_s": 0.9025152428626119,
+        "peak_power_W": 143.40987621127067
       },
       "shoulder": {
-        "peak_torque_Nm": 130.61361787981738,
-        "rms_torque_Nm": 126.57700800390747,
-        "peak_speed_rad_s": 0.2719139961098791,
-        "peak_power_W": 35.060768533940646
+        "peak_torque_Nm": 129.39433708189407,
+        "rms_torque_Nm": 125.74685009598889,
+        "peak_speed_rad_s": 0.23945415611600676,
+        "peak_power_W": 30.568184924041994
       },
       "elbow": {
-        "peak_torque_Nm": 89.8078698779079,
-        "rms_torque_Nm": 78.1394990078125,
-        "peak_speed_rad_s": 0.24961198306105423,
-        "peak_power_W": 19.70500903787945
+        "peak_torque_Nm": 90.38071525571758,
+        "rms_torque_Nm": 78.41614434092354,
+        "peak_speed_rad_s": 0.22501971796659626,
+        "peak_power_W": 17.823796883306642
       }
     },
     "stoop": {
       "ankle": {
-        "peak_torque_Nm": 174.9129585925727,
-        "rms_torque_Nm": 98.491812728897,
-        "peak_speed_rad_s": 0.3073275274299796,
-        "peak_power_W": 52.1903077953396
+        "peak_torque_Nm": 164.61670714959308,
+        "rms_torque_Nm": 95.94066733040685,
+        "peak_speed_rad_s": 0.28096409139414397,
+        "peak_power_W": 44.93256505563379
       },
       "knee": {
-        "peak_torque_Nm": 237.9837058034729,
-        "rms_torque_Nm": 168.2027097473982,
-        "peak_speed_rad_s": 0.2573804127393788,
-        "peak_power_W": 53.90492179684368
+        "peak_torque_Nm": 238.0622136888697,
+        "rms_torque_Nm": 170.25854616666433,
+        "peak_speed_rad_s": 0.2298654625733029,
+        "peak_power_W": 48.578710519851334
       },
       "hip": {
-        "peak_torque_Nm": 441.33289522737766,
-        "rms_torque_Nm": 289.2869614284357,
-        "peak_speed_rad_s": 2.58549320897405,
-        "peak_power_W": 789.1278309283895
+        "peak_torque_Nm": 440.4964672709473,
+        "rms_torque_Nm": 296.0564142927098,
+        "peak_speed_rad_s": 2.237814407997946,
+        "peak_power_W": 710.2746282109681
       },
       "shoulder": {
-        "peak_torque_Nm": 133.95213501428998,
-        "rms_torque_Nm": 97.38583108290395,
-        "peak_speed_rad_s": 1.8423163481439717,
-        "peak_power_W": 138.2615986190544
+        "peak_torque_Nm": 131.67373828450891,
+        "rms_torque_Nm": 98.95611821091588,
+        "peak_speed_rad_s": 1.6190530495844522,
+        "peak_power_W": 130.27170109748346
       },
       "elbow": {
-        "peak_torque_Nm": 89.90359925970051,
-        "rms_torque_Nm": 62.637089079428456,
-        "peak_speed_rad_s": 0.6299667025777256,
-        "peak_power_W": 31.70418471176172
+        "peak_torque_Nm": 90.38319560572812,
+        "rms_torque_Nm": 64.55904486026,
+        "peak_speed_rad_s": 0.5740840164748267,
+        "peak_power_W": 31.6376869290955
       }
     }
   },
+  "analyzed_lifts": {
+    "squat": {
+      "duration_s": 4.6,
+      "balanced": true,
+      "cop_range_m": [
+        -0.07,
+        0.066
+      ],
+      "floor_force_over_weight": [
+        0.98,
+        1.02
+      ],
+      "largest_cop_change_from_my_first_formula_mm": 2.4,
+      "hip_peak_per_side_Nm": 104.1,
+      "hip_peak_power_per_side_W": 72
+    },
+    "stoop": {
+      "duration_s": 1.77,
+      "balanced": true,
+      "cop_range_m": [
+        0.015,
+        0.187
+      ],
+      "floor_force_over_weight": [
+        0.89,
+        1.12
+      ],
+      "largest_cop_change_from_my_first_formula_mm": 20.2,
+      "hip_peak_per_side_Nm": 220.2,
+      "hip_peak_power_per_side_W": 355
+    }
+  },
+  "squat_over_stoop_hip_peak_at_equal_duration": {
+    "1.77 s": 0.56,
+    "4.60 s": 0.56
+  },
   "push_recovery": {
-    "com_height_m": 1.015,
+    "com_height_m": 1.05,
     "hip_height_m": 0.929,
-    "largest_push_ankles_alone_m_s": 0.59,
+    "largest_push_ankles_alone_m_s": 0.58,
     "by_step_cap": {
       "step at most 0.5 m": {
-        "1.00": 1.32,
-        "1.25": 3.38,
+        "1.00": 1.39,
+        "1.25": 3.62,
         "1.50": Infinity
       },
       "step at most 0.6 m": {
-        "1.00": 1.23,
-        "1.25": 2.48,
-        "1.50": 5.24
+        "1.00": 1.27,
+        "1.25": 2.59,
+        "1.50": 5.6
       },
       "step at most 0.8 m": {
-        "1.00": 1.23,
-        "1.25": 2.07,
-        "1.50": 3.31
+        "1.00": 1.26,
+        "1.25": 2.12,
+        "1.50": 3.42
       },
       "any step the leg can reach": {
-        "1.00": 1.23,
-        "1.25": 2.05,
-        "1.50": 2.93
+        "1.00": 1.26,
+        "1.25": 2.08,
+        "1.50": 2.97
       }
+    },
+    "half_meter_step_if_swings_under_80_ms_were_allowed": {
+      "hip_speed_rad_s": 12.42,
+      "swing_s": 0.068,
+      "min_swing_assumed_s": 0.08
     },
     "design_case": {
       "push_m_s": 1.5,
       "max_step_m": 0.6,
       "impulse_Ns": 106,
-      "hip_speed_rad_s": 5.24,
-      "swing_s": 0.152,
+      "hip_speed_rad_s": 5.6,
+      "swing_s": 0.146,
       "step_m": 0.6
     }
   },
   "hip_ratio_trade": {
     "maxon EC frameless HT 60 M": {
-      "ratio": 74.0,
-      "mean_copper_W": 222.61,
-      "reflected_inertia_kgm2": 0.097
+      "ratio": 68.2,
+      "mean_copper_W": 274.64,
+      "reflected_inertia_kgm2": 0.082
     },
     "maxon EC frameless HT 76 M": {
-      "ratio": 59.1,
-      "mean_copper_W": 98.24,
-      "reflected_inertia_kgm2": 0.161
+      "ratio": 55.5,
+      "mean_copper_W": 116.26,
+      "reflected_inertia_kgm2": 0.142
     },
     "maxon EC frameless HT 90 M": {
-      "ratio": 39.1,
-      "mean_copper_W": 68.94,
-      "reflected_inertia_kgm2": 0.184
+      "ratio": 36.8,
+      "mean_copper_W": 81.57,
+      "reflected_inertia_kgm2": 0.162
     }
   },
   "gearbox": {
     "planetary (assumed 0.97 per stage, up to 10:1 per stage)": {
-      "min_total_heat_ratio": 300.0,
-      "min_total_heat_W": 21.34,
-      "copper_W_at_that_ratio": 4.42,
-      "gearbox_W_at_that_ratio": 16.93,
+      "sweep": [
+        5.0,
+        300.0
+      ],
+      "total_W_at_sweep_end": 19.78,
+      "total_still_falling_at_sweep_end": true,
+      "gearbox_makes_most_of_the_heat_from": 161.7,
+      "total_W_at_100_to_1": 46.04,
+      "total_W_at_101_to_1": 52.79,
       "at_50_to_1": {
-        "copper_W": 136.89,
-        "gearbox_W": 11.11,
+        "copper_W": 143.27,
+        "gearbox_W": 10.03,
         "efficiency": 0.941
       }
     },
     "strain wave (assumed 0.75, one stage)": {
-      "min_total_heat_ratio": 160.0,
-      "min_total_heat_W": 80.39,
-      "copper_W_at_that_ratio": 21.42,
-      "gearbox_W_at_that_ratio": 58.96,
+      "sweep": [
+        30.0,
+        160.0
+      ],
+      "total_W_at_sweep_end": 75.52,
+      "total_still_falling_at_sweep_end": true,
+      "gearbox_makes_most_of_the_heat_from": 103.9,
       "at_50_to_1": {
-        "copper_W": 215.33,
-        "gearbox_W": 58.96,
+        "copper_W": 225.4,
+        "gearbox_W": 53.21,
         "efficiency": 0.75
       }
     },
-    "hip_reach_at_pick_m": 0.916,
-    "hand_play_mm_planetary_at_50_to_1": 3.0
+    "hip_reach_at_pick_m": 0.922,
+    "hand_play_mm_planetary_at_50_to_1": 3.1
+  },
+  "maxon_rated_point_winding_C": {
+    "EC frameless HT 60 M": {
+      "copper_only": 104.5,
+      "with_iron_loss": 152.8,
+      "iron_loss_on_housing_only": 131.2,
+      "copper_W": 16.4,
+      "iron_W": 10.0,
+      "maxon_limit": 155
+    },
+    "EC frameless HT 76 M": {
+      "copper_only": 99.2,
+      "with_iron_loss": 161.1,
+      "iron_loss_on_housing_only": 131.6,
+      "copper_W": 20.0,
+      "iron_W": 16.7,
+      "maxon_limit": 155
+    },
+    "EC frameless HT 90 M": {
+      "copper_only": 107.8,
+      "with_iron_loss": 164.0,
+      "iron_loss_on_housing_only": 135.0,
+      "copper_W": 28.8,
+      "iron_W": 19.6,
+      "maxon_limit": 155
+    }
+  },
+  "shuttle": {
+    "rate_per_hour": 120,
+    "lift_s": 1.77,
+    "walk_each_way_s": 13.23,
+    "stride_s": 1.057,
+    "mass_carried_kg": 98.0,
+    "cycle_with_squat_lifts_s": 35.7,
+    "totes_per_hour_with_squat_lifts": 101
+  },
+  "walking_data": {
+    "stride_s": 1.057,
+    "one_leg_vertical_floor_force_mean_N_per_kg": 4.86,
+    "peak_joint_speed_rad_s": {
+      "ankle": 4.66,
+      "knee": 6.74,
+      "hip": 3.39
+    },
+    "mean_curve_swing_rms_Nm_per_kg": {
+      "ankle": 0.484,
+      "knee": 0.188,
+      "hip": 0.335
+    },
+    "per_person_swing_rms_Nm_per_kg_min_mean_max": {
+      "hip": [
+        0.232,
+        0.35,
+        0.478
+      ],
+      "knee": [
+        0.09,
+        0.204,
+        0.318
+      ],
+      "ankle": [
+        0.361,
+        0.488,
+        0.582
+      ]
+    }
   },
   "min_ratio_for_120_totes_per_hour": {
-    "ankle": 22.5,
-    "knee": 28.4,
-    "hip": 42.5,
-    "shoulder": 35.8,
+    "ankle": 36.3,
+    "knee": 31.9,
+    "hip": 50.5,
+    "shoulder": 34.6,
+    "elbow": 23.9
+  },
+  "min_ratio_for_120_totes_per_hour_walking_as_standing": {
+    "ankle": 21.7,
+    "knee": 29.2,
+    "hip": 44.5,
+    "shoulder": 34.6,
     "elbow": 23.9
   },
   "hold_torque_per_side_Nm": {
     "ankle": -28.2,
-    "knee": -38.0,
-    "hip": -51.8,
-    "shoulder": -65.3,
-    "elbow": -44.9
+    "knee": -37.6,
+    "hip": -51.1,
+    "shoulder": -64.7,
+    "elbow": -45.2
   },
-  "min_ratio_for_120_totes_per_hour_by_motor": {
+  "hip_heat_per_cycle_J": {
+    "ratio": 50.5,
+    "lift": 254,
+    "lower": 199,
+    "carry": 348,
+    "walk back": 98
+  },
+  "hip_heat_per_cycle_J_walking_as_standing": {
+    "lift": 254,
+    "lower": 199,
+    "carry": 221,
+    "walk back": 4
+  },
+  "shuttle_min_ratio_by_motor": {
     "maxon EC frameless HT 60 M (226 g)": {
-      "ankle": 47.7,
-      "knee": 63.6,
-      "hip": 95.3,
-      "shoulder": 75.7,
-      "elbow": 53.5
+      "rated mounting (housing on a plate)": {
+        "walking": {
+          "ankle": 79.3,
+          "knee": null,
+          "hip": 111.8,
+          "shoulder": 74.1,
+          "elbow": 51.2
+        },
+        "walking as standing": {
+          "ankle": 46.5,
+          "knee": 62.5,
+          "hip": 95.5,
+          "shoulder": 74.1,
+          "elbow": 51.2
+        },
+        "hip limit set by": "heat",
+        "hip heat-only minimum": 111.8,
+        "hip torque-and-speed minimum": 67.7
+      },
+      "housing, no plate": {
+        "walking": {
+          "ankle": null,
+          "knee": null,
+          "hip": null,
+          "shoulder": 91.9,
+          "elbow": 63.4
+        },
+        "walking as standing": {
+          "ankle": 57.5,
+          "knee": 77.4,
+          "hip": 120.3,
+          "shoulder": 91.9,
+          "elbow": 63.4
+        },
+        "hip limit set by": "torque or speed",
+        "hip heat-only minimum": 150.2,
+        "hip torque-and-speed minimum": 67.7
+      }
     },
     "maxon EC frameless HT 76 M (376 g)": {
-      "ankle": 22.5,
-      "knee": 28.4,
-      "hip": 42.5,
-      "shoulder": 35.8,
-      "elbow": 23.9
+      "rated mounting (housing on a plate)": {
+        "walking": {
+          "ankle": 36.3,
+          "knee": 31.9,
+          "hip": 50.5,
+          "shoulder": 34.6,
+          "elbow": 23.9
+        },
+        "walking as standing": {
+          "ankle": 21.7,
+          "knee": 29.2,
+          "hip": 44.5,
+          "shoulder": 34.6,
+          "elbow": 23.9
+        },
+        "hip limit set by": "heat",
+        "hip heat-only minimum": 50.5,
+        "hip torque-and-speed minimum": 33.5
+      },
+      "housing, no plate": {
+        "walking": {
+          "ankle": 45.5,
+          "knee": 40.8,
+          "hip": 64.4,
+          "shoulder": 42.2,
+          "elbow": 29.2
+        },
+        "walking as standing": {
+          "ankle": 26.5,
+          "knee": 35.6,
+          "hip": 54.5,
+          "shoulder": 42.2,
+          "elbow": 29.2
+        },
+        "hip limit set by": "heat",
+        "hip heat-only minimum": 64.4,
+        "hip torque-and-speed minimum": 33.5
+      }
     },
     "maxon EC frameless HT 90 M (649 g)": {
-      "ankle": 10.7,
-      "knee": 14.2,
-      "hip": 21.3,
-      "shoulder": 16.9,
-      "elbow": 12.0
+      "rated mounting (housing on a plate)": {
+        "walking": {
+          "ankle": 17.3,
+          "knee": 15.1,
+          "hip": 23.9,
+          "shoulder": 16.7,
+          "elbow": 11.5
+        },
+        "walking as standing": {
+          "ankle": 10.5,
+          "knee": 14.1,
+          "hip": 22.1,
+          "shoulder": 16.7,
+          "elbow": 11.5
+        },
+        "hip limit set by": "heat",
+        "hip heat-only minimum": 23.9,
+        "hip torque-and-speed minimum": 22.1
+      },
+      "housing, no plate": {
+        "walking": {
+          "ankle": 22.1,
+          "knee": 19.5,
+          "hip": 31.0,
+          "shoulder": 21.0,
+          "elbow": 14.5
+        },
+        "walking as standing": {
+          "ankle": 13.1,
+          "knee": 17.7,
+          "hip": 27.0,
+          "shoulder": 21.0,
+          "elbow": 14.5
+        },
+        "hip limit set by": "heat",
+        "hip heat-only minimum": 31.0,
+        "hip torque-and-speed minimum": 22.1
+      }
     }
+  },
+  "hip_window_by_motor": {
+    "maxon EC frameless HT 60 M (226 g)": {
+      "rated mounting (housing on a plate)": null,
+      "housing, no plate": null
+    },
+    "maxon EC frameless HT 76 M (376 g)": {
+      "rated mounting (housing on a plate)": [
+        50.5,
+        56.1
+      ],
+      "housing, no plate": null
+    },
+    "maxon EC frameless HT 90 M (649 g)": {
+      "rated mounting (housing on a plate)": [
+        23.9,
+        37.2
+      ],
+      "housing, no plate": [
+        31.0,
+        37.2
+      ]
+    }
+  },
+  "hip_max_ratio_for_push_recovery": {
+    "maxon EC frameless HT 60 M": 69.4,
+    "maxon EC frameless HT 76 M": 56.1,
+    "maxon EC frameless HT 90 M": 37.2
+  },
+  "hip_min_ratio_sensitivity_HT76M": {
+    "gait swing of the smallest / mean / largest person": [
+      48.0,
+      50.5,
+      55.2
+    ],
+    "torque per amp falling 0 / 20 / 40% from 2x nominal torque to stall": [
+      50.5,
+      52.2,
+      53.9
+    ]
+  },
+  "hip_motor_torque_at_min_ratio": {
+    "peak_over_nominal": 3.66,
+    "peak_over_stall": 0.66
   },
   "hip_thermal_ripple": {
     "motor": "maxon EC frameless HT 76 M",
-    "limit_from_average": 42.5,
-    "limit_from_peak": 43.0,
-    "swing_K_at_peak_limit": 14.0,
-    "peak_above_cycle_mean_K": 6.4
+    "limit_from_average": 50.5,
+    "limit_from_peak": 51.6,
+    "swing_K_at_peak_limit": 11.1,
+    "peak_above_cycle_mean_K": 5.1,
+    "hottest_moment_s_into_cycle": 16.2
   },
   "asymmetric_lifts_peak_Nm": {
     "two-handed": {
-      "hip pitch": 220.7,
+      "hip pitch": 220.2,
       "hip roll": 0.0,
       "trunk twist": 0.0,
-      "shoulder": 67.0,
-      "elbow": 45.0
+      "shoulder": 65.8,
+      "elbow": 45.2
     },
     "one-handed": {
-      "hip pitch": 206.6,
-      "hip roll": 55.3,
-      "trunk twist": 62.6,
-      "shoulder": 125.0,
-      "elbow": 88.5
+      "hip pitch": 207.1,
+      "hip roll": 52.0,
+      "trunk twist": 59.0,
+      "shoulder": 123.2,
+      "elbow": 88.9
     },
     "one-handed, from the side": {
-      "hip pitch": 122.9,
-      "hip roll": 109.2,
-      "trunk twist": 124.7,
-      "shoulder": 122.4,
-      "elbow": 88.5
+      "hip pitch": 129.3,
+      "hip roll": 105.4,
+      "trunk twist": 122.9,
+      "shoulder": 121.5,
+      "elbow": 88.9
     }
   },
   "asymmetric_lifts_note": "hip roll and trunk twist are both sides together; the rest per actuator",
+  "side_pick_trunk_twist_deg": 42,
   "sea_impact": {
+    "link_inertia_per_side_kgm2": {
+      "standing, no tote": 3.91,
+      "carrying the tote (end of the lift)": 6.64,
+      "stooped over the tote (start of the lift)": 18.24
+    },
+    "figure_uses": "carrying the tote (end of the lift)",
     "N20": {
-      "rigid_Nm": 7,
-      "k_3000_Nm": 11
+      "rigid_Nm": 3,
+      "k_1e6_Nm": 3,
+      "k_3000_Nm": 5,
+      "spring_helps_only_below_k": 180.0,
+      "worst_k": 1400.0,
+      "worst_Nm": 6
+    },
+    "rigid_vs_k3000_Nm_by_posture": {
+      "standing, no tote": {
+        "N20": [
+          4,
+          7
+        ],
+        "N50": [
+          26,
+          33
+        ],
+        "N120": [
+          139,
+          81
+        ]
+      },
+      "carrying the tote (end of the lift)": {
+        "N20": [
+          3,
+          5
+        ],
+        "N50": [
+          20,
+          30
+        ],
+        "N120": [
+          110,
+          82
+        ]
+      },
+      "stooped over the tote (start of the lift)": {
+        "N20": [
+          2,
+          3
+        ],
+        "N50": [
+          12,
+          21
+        ],
+        "N120": [
+          68,
+          80
+        ]
+      }
     },
     "N50": {
-      "rigid_Nm": 44,
-      "k_3000_Nm": 34
+      "rigid_Nm": 20,
+      "k_1e6_Nm": 21,
+      "k_3000_Nm": 30,
+      "spring_helps_only_below_k": 1150.0,
+      "worst_k": 9100.0,
+      "worst_Nm": 35
     },
     "N120": {
-      "rigid_Nm": 218,
-      "k_3000_Nm": 74
+      "rigid_Nm": 110,
+      "k_1e6_Nm": 125,
+      "k_3000_Nm": 82,
+      "spring_helps_only_below_k": 6250.0,
+      "worst_k": 49400.0,
+      "worst_Nm": 189
     }
   },
   "sea_static_deflection_rad_at_peak_hip_torque": {
-    "1000": 0.221,
-    "3000": 0.074,
+    "1000": 0.22,
+    "3000": 0.073,
     "10000": 0.022
   },
   "cad": "cad/hip_actuator_envelope.step"
