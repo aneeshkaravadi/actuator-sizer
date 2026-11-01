@@ -1,8 +1,9 @@
 """Motor + gearbox sizing, winding temperature, series elasticity, air-core vs iron-core.
 
 MOTORS are three real frameless BLDC kits, maxon's EC frameless HT 60 M, 76 M and
-90 M, built from the values on maxon's product pages (MAXON_HT, read 2026-10-06).
-The illustrative motors this started with are kept as ILLUSTRATIVE_MOTORS.
+90 M, built from the values on maxon's product pages (MAXON_HT, read 2026-10-06 and
+again 2026-11-01). The illustrative motors this started with are kept as
+ILLUSTRATIVE_MOTORS.
 """
 from __future__ import annotations
 
@@ -28,6 +29,10 @@ class Motor:
     # r_th_wh, then the housing (c_th) behind the rest of r_th to ambient.
     r_th_wh: float | None = None  # K/W, winding to housing
     c_winding: float | None = None  # J/K
+    # maxon treats a brushless motor's iron losses as an extra friction torque, Kt times the
+    # no-load current (catalog 2026/27, pp. 90-91), so they cost t_iron * |w| watts.
+    t_iron: float = 0.0  # N m
+    t_nominal: float | None = None  # N m, max. continuous torque
 
     @property
     def km(self) -> float:
@@ -43,7 +48,13 @@ ILLUSTRATIVE_MOTORS = [
 
 @dataclass(frozen=True)
 class MaxonDatasheet:
-    """A frameless kit's values exactly as maxon lists them (units as published)."""
+    """A frameless kit's values exactly as maxon lists them (units as published).
+
+    The product pages give one housing-to-ambient thermal resistance. maxon's 2026/27 catalog
+    (pp. 256, 258, 260) gives a range for each kit: the product-page value is the one the rated
+    data refer to, with the kit built into an aluminium housing that is bolted to a large
+    aluminium plate, and the higher value is the same housing without the plate.
+    """
 
     name: str
     part: str
@@ -63,31 +74,61 @@ class MaxonDatasheet:
     tau_motor: float  # s, thermal time constant of the motor
     max_winding_temp: float  # C
     weight_g: float
+    no_load_current: float  # A
+    nominal_speed_rpm: float
+    speed_torque_gradient_rpm_mnm: float
+    mechanical_time_constant_ms: float
+    max_efficiency: float  # fraction
+    r_th_housing_ambient_no_plate: float  # K/W, catalog: built into an aluminium housing, no plate
 
-    def motor(self) -> Motor:
-        """The kit as a Motor.
+    def motor(self, mounting: str = "plate") -> Motor:
+        """The kit as a Motor, mounted the way maxon rates it ("plate") or without the plate ("housing").
 
-        The peak current is capped at the listed stall torque over Kt, not at the listed
-        stall current: the stall current is just V/R, and the listed stall torque is far
-        below Kt times it, because the iron saturates long before.
+        The peak current is capped at the listed stall torque over Kt, not at the listed stall
+        current (just V/R). maxon's general rule is stall torque = Kt x starting current
+        (catalog p. 91), but for these kits it lists about a quarter of that, and it says its
+        frameless kits' characteristics depart from strictly linear (p. 78). My reading is that
+        the iron saturates; maxon doesn't publish the curve, so the cap is an inference.
+        Changing the mounting changes only R_th2; the housing's heat capacity is kept.
         """
         kt = self.torque_constant_mnm_a / 1000.0
-        return Motor(f"maxon {self.name}", kt=kt, r=self.terminal_resistance, j_rotor=self.rotor_inertia_gcm2 * 1e-7,
+        r_ha = {"plate": self.r_th_housing_ambient, "housing": self.r_th_housing_ambient_no_plate}[mounting]
+        label = "" if mounting == "plate" else ", no plate"
+        return Motor(f"maxon {self.name}{label}", kt=kt, r=self.terminal_resistance, j_rotor=self.rotor_inertia_gcm2 * 1e-7,
                      w_max=self.no_load_speed_rpm * 2 * np.pi / 60, i_max=self.stall_torque_mnm / 1000.0 / kt,
-                     r_th=self.r_th_winding_housing + self.r_th_housing_ambient,
+                     r_th=self.r_th_winding_housing + r_ha,
                      c_th=self.tau_motor / self.r_th_housing_ambient, mass=self.weight_g / 1000.0,
                      t_winding_max=self.max_winding_temp, r_th_wh=self.r_th_winding_housing,
-                     c_winding=self.tau_winding / self.r_th_winding_housing)
+                     c_winding=self.tau_winding / self.r_th_winding_housing,
+                     t_iron=kt * self.no_load_current, t_nominal=self.nominal_torque_mnm / 1000.0)
+
+    def rated_winding_temperature(self, t_amb: float = 25.0, iron: bool = True) -> float:
+        """Steady winding temperature at maxon's rated point: nominal current at nominal speed.
+
+        maxon defines the nominal current as the continuous current that brings the winding to its
+        maximum temperature at 25 C ambient (catalog p. 92), so this is an independent check of the
+        thermal resistances: it should come out near max_winding_temp.
+        """
+        mot = self.motor()
+        p_iron = mot.t_iron * self.nominal_speed_rpm * 2 * np.pi / 60 if iron else 0.0
+        return steady_winding_temperature(mot, self.nominal_current**2 * mot.r, t_amb, p_other_w=p_iron)
 
 
-# From maxon's product pages (maxongroup.com/maxon/view/product/<part>), read 2026-10-06.
+# From maxon's product pages (maxongroup.com/maxon/view/product/<part>), read 2026-10-06 and 2026-11-01,
+# except the last value of each, the no-plate R_th2 from maxon's Produktprogramm 2026/27 (pp. 256, 258, 260).
 MAXON_HT = [
     MaxonDatasheet("EC frameless HT 60 M", "936176", 48, 4640, 612, 5.76, 3460, 96.9, 0.495, 98, 97.4, 177,
-                   2.04, 1.65, 37.8, 231, 155, 226),
+                   2.04, 1.65, 37.8, 231, 155, 226, no_load_current=0.252, nominal_speed_rpm=3850,
+                   speed_torque_gradient_rpm_mnm=0.492, mechanical_time_constant_ms=0.913, max_efficiency=0.90,
+                   r_th_housing_ambient_no_plate=4.0),
     MaxonDatasheet("EC frameless HT 76 M", "934928", 48, 3750, 1270, 9.65, 7000, 223, 0.215, 122, 78.6, 461,
-                   1.5, 1.37, 54, 1320, 155, 376),
+                   1.5, 1.37, 54, 1320, 155, 376, no_load_current=0.411, nominal_speed_rpm=3180,
+                   speed_torque_gradient_rpm_mnm=0.139, mechanical_time_constant_ms=0.673, max_efficiency=0.92,
+                   r_th_housing_ambient_no_plate=2.9),
     MaxonDatasheet("EC frameless HT 90 M", "937612", 48, 2490, 2750, 13.9, 10600, 321, 0.149, 183, 52.2, 1200,
-                   1.05, 1.12, 77.7, 341, 155, 649),
+                   1.05, 1.12, 77.7, 341, 155, 649, no_load_current=0.479, nominal_speed_rpm=2130,
+                   speed_torque_gradient_rpm_mnm=0.0426, mechanical_time_constant_ms=0.537, max_efficiency=0.92,
+                   r_th_housing_ambient_no_plate=2.3),
 ]
 MOTORS = [d.motor() for d in MAXON_HT]
 
@@ -143,6 +184,10 @@ class Drive:
     ratio: float
     efficiency: float | None = None  # forward efficiency; None takes it from the gearbox, or 0.90
     gearbox: Gearbox | None = None
+    # Sensitivity only: torque per amp falling linearly from Kt at kt_knee x the nominal torque
+    # to (1 - kt_drop) Kt at the stall torque, a stand-in for saturation maxon doesn't publish.
+    kt_drop: float = 0.0
+    kt_knee: float = 2.0
 
     @property
     def eta(self) -> float:
@@ -164,11 +209,24 @@ class Drive:
             through = np.where(back, tau * backdriven_efficiency(self.eta) / self.ratio, through)
         return through + self.motor.j_rotor * self.ratio * np.asarray(qdd_joint, float)
 
+    def kt_effective(self, tau_motor):
+        m = self.motor
+        if self.kt_drop == 0.0:
+            return m.kt
+        knee, stall = self.kt_knee * m.t_nominal, m.kt * m.i_max
+        x = np.clip((np.abs(tau_motor) - knee) / (stall - knee), 0.0, 1.0)
+        return m.kt * (1.0 - self.kt_drop * x)
+
     def current(self, tau_joint, qdd_joint=0.0, qd_joint=None):
-        return self.motor_torque(tau_joint, qdd_joint, qd_joint) / self.motor.kt
+        tm = self.motor_torque(tau_joint, qdd_joint, qd_joint)
+        return tm / self.kt_effective(tm)
 
     def copper_loss(self, tau_joint, qdd_joint=0.0, qd_joint=None):
         return self.current(tau_joint, qdd_joint, qd_joint) ** 2 * self.motor.r
+
+    def iron_loss(self, qd_joint):
+        """Speed-dependent stator losses, W (maxon's friction-torque treatment, see Motor.t_iron)."""
+        return self.motor.t_iron * np.abs(np.asarray(qd_joint, float)) * self.ratio
 
     def gearbox_loss(self, tau_joint, qd_joint):
         """Heat made by friction in the gearbox itself (not in the winding), W."""
@@ -213,40 +271,44 @@ def inertia_matched_ratio(j_load: float, j_rotor: float) -> float:
 
 # ---------------------------------------------------------------- winding temperature
 
-def winding_temperature(motor: Motor, p_loss_w: np.ndarray, dt: float, t_amb: float = 30.0, alpha_cu: float = 0.00393):
+def winding_temperature(motor: Motor, p_loss_w: np.ndarray, dt: float, t_amb: float = 30.0, alpha_cu: float = 0.00393,
+                        p_other_w=None):
     """Winding temperature, with copper resistance rising with temperature.
 
-    One node:   C dT/dt = P (1 + a (T - 25)) - (T - T_amb) / R_th
+    One node:   C dT/dt = P (1 + a (T - 25)) + Q - (T - T_amb) / R_th
     Two nodes (when the motor gives r_th_wh and c_winding, as maxon's data do):
-        C_w dT_w/dt = P (1 + a (T_w - 25)) - (T_w - T_h) / R_wh
+        C_w dT_w/dt = P (1 + a (T_w - 25)) + Q - (T_w - T_h) / R_wh
         C_h dT_h/dt = (T_w - T_h) / R_wh - (T_h - T_amb) / R_ha,    R_ha = R_th - R_wh
-    P is the copper loss at the 25 C resistance.
+    P is the copper loss at the 25 C resistance and Q (p_other_w) the iron loss, which like maxon's
+    own simplified model goes through the whole R_th.
     """
+    p_other = np.zeros(len(p_loss_w)) if p_other_w is None else np.broadcast_to(p_other_w, (len(p_loss_w),))
     T = np.empty(len(p_loss_w))
     if motor.r_th_wh is None:
         t = t_amb
-        for i, p in enumerate(p_loss_w):
-            t += dt * (p * (1 + alpha_cu * (t - 25.0)) - (t - t_amb) / motor.r_th) / motor.c_th
+        for i, (p, q) in enumerate(zip(p_loss_w, p_other)):
+            t += dt * (p * (1 + alpha_cu * (t - 25.0)) + q - (t - t_amb) / motor.r_th) / motor.c_th
             T[i] = t
         return T
     r_wh, r_ha = motor.r_th_wh, motor.r_th - motor.r_th_wh
     tw = th = t_amb
-    for i, p in enumerate(p_loss_w):
+    for i, (p, q) in enumerate(zip(p_loss_w, p_other)):
         q_wh = (tw - th) / r_wh
-        tw += dt * (p * (1 + alpha_cu * (tw - 25.0)) - q_wh) / motor.c_winding
+        tw += dt * (p * (1 + alpha_cu * (tw - 25.0)) + q - q_wh) / motor.c_winding
         th += dt * (q_wh - (th - t_amb) / r_ha) / motor.c_th
         T[i] = tw
     return T
 
 
-def steady_winding_temperature(motor: Motor, p_avg_w: float, t_amb: float = 30.0, alpha_cu: float = 0.00393) -> float:
-    """Closed form of the model above at steady state (cycle-averaged loss)."""
-    # T - T_amb = R_th * P (1 + a (T - 25))  ->  linear in T
+def steady_winding_temperature(motor: Motor, p_avg_w: float, t_amb: float = 30.0, alpha_cu: float = 0.00393,
+                               p_other_w: float = 0.0) -> float:
+    """Closed form of the model above at steady state (cycle-averaged copper loss P, iron loss Q)."""
+    # T - T_amb = R_th (P (1 + a (T - 25)) + Q)  ->  linear in T
     a, R, P = alpha_cu, motor.r_th, p_avg_w
     denom = 1 - R * P * a
     if denom <= 0:
         return np.inf  # thermal runaway: resistance grows faster than cooling
-    return (t_amb + R * P * (1 - 25 * a)) / denom
+    return (t_amb + R * P * (1 - 25 * a) + R * p_other_w) / denom
 
 
 # ---------------------------------------------------------------- series elasticity

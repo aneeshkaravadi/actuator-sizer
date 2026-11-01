@@ -132,9 +132,22 @@ def test_planetary_efficiency_steps_down_with_each_stage():
     assert pg.backlash_arcmin(100) == pytest.approx(10 + 10 / 10)
 
 
-def test_backdriven_efficiency_and_self_locking():
-    assert A.backdriven_efficiency(0.9) == pytest.approx(2 - 1 / 0.9)
-    assert A.backdriven_efficiency(0.5) == pytest.approx(0.0)  # below this the gearbox self-locks
+def test_backdriven_efficiency_agrees_with_an_inclined_plane_with_coulomb_friction():
+    """A gear mesh is a wedge. Pushing a load W up a slope of angle lam with friction angle phi takes
+    a force W tan(lam + phi), and holding it while it slides back down takes W tan(lam - phi), so
+        eta_forward = tan(lam) / tan(lam + phi),   eta_back = tan(lam - phi) / tan(lam).
+    For mesh-like friction (mu of a few percent) that matches 2 - 1/eta to second order in mu, and
+    both say a drive that is about 50% efficient or worse can't be backdriven at all."""
+    for lam in np.radians([10.0, 20.0, 35.0, 50.0]):
+        for mu in (0.01, 0.02, 0.04):
+            phi = np.arctan(mu)
+            eta_f, eta_b = np.tan(lam) / np.tan(lam + phi), np.tan(lam - phi) / np.tan(lam)
+            assert A.backdriven_efficiency(eta_f) == pytest.approx(eta_b, abs=6 * mu**2)
+    lam = np.radians(3.0)  # self-locking: the slope is exactly as steep as the friction angle
+    assert A.backdriven_efficiency(np.tan(lam) / np.tan(2 * lam)) == pytest.approx(0.0, abs=0.01)
+
+
+def test_drive_torque_raising_and_lowering():
     dr = A.Drive(A.MOTORS[1], 50, gearbox=A.PLANETARY)
     eta = 0.97**2
     raise_ = dr.motor_torque(100.0, 0.0, 1.0)  # lifting: the motor drives the load
@@ -222,18 +235,42 @@ def test_min_jerk_peak_speed_is_fifteen_eighths_of_the_average():
 
 @pytest.mark.parametrize("d", A.MAXON_HT, ids=lambda d: d.part)
 def test_maxon_datasheet_values_are_self_consistent(d):
-    """Cross-checks between independently listed numbers, which would catch a mistyped value."""
+    """Cross-checks between independently listed numbers, which would catch a mistyped value.
+    The relations are maxon's own (catalog 2026/27, pp. 90-91)."""
     assert d.torque_constant_mnm_a == pytest.approx(60_000 / (2 * np.pi * d.speed_constant_rpm_v), rel=0.01)
     assert 0.98 < d.no_load_speed_rpm / (d.speed_constant_rpm_v * d.nominal_voltage) <= 1.0
     assert d.stall_current == pytest.approx(d.nominal_voltage / d.terminal_resistance, rel=0.01)
-    # the listed stall torque sits far below Kt times the stall current: the iron saturates
+    # speed/torque gradient = 30000/pi R / kM^2, and mechanical time constant = R J / kM^2 (rotor inertia)
+    kt = d.torque_constant_mnm_a / 1000
+    assert d.speed_torque_gradient_rpm_mnm == pytest.approx(d.terminal_resistance / kt**2 * 60 / (2 * np.pi) / 1000, rel=0.02)
+    assert d.mechanical_time_constant_ms == pytest.approx(d.terminal_resistance * d.rotor_inertia_gcm2 * 1e-7 / kt**2 * 1e3, rel=0.02)
+    # max. efficiency = (1 - sqrt(I0 / I_A))^2 (no-load current)
+    assert d.max_efficiency == pytest.approx((1 - np.sqrt(d.no_load_current / d.stall_current)) ** 2, abs=0.006)
+    # maxon's general rule is stall torque = kM x starting current; for these kits it lists far less
     assert d.stall_torque_mnm < 0.5 * d.torque_constant_mnm_a * d.stall_current
+
+
+@pytest.mark.parametrize("d", A.MAXON_HT, ids=lambda d: d.part)
+def test_maxon_rated_current_brings_the_winding_to_its_limit(d):
+    """maxon's nominal current is the continuous current that takes the winding to its maximum
+    temperature at 25 C ambient (catalog p. 92). Running the thermal model at that current and the
+    nominal speed is an independent check on the thermal resistances, once the iron losses are in:
+    within 10 K of 155 C, about the 8% spread between the two R_th1 values maxon publishes
+    (product page against catalog). Copper loss alone comes out 45 to 56 K short."""
+    assert d.rated_winding_temperature() == pytest.approx(d.max_winding_temp, abs=10.0)
+    assert d.rated_winding_temperature(iron=False) < d.max_winding_temp - 40.0
 
 
 def test_two_node_winding_model_settles_on_the_closed_form():
     mot = A.MOTORS[1]
     T = A.winding_temperature(mot, np.full(40000, 25.0), dt=0.5)
     assert T[-1] == pytest.approx(A.steady_winding_temperature(mot, 25.0), abs=0.2)
+
+
+def test_two_node_winding_with_iron_loss_settles_on_the_closed_form():
+    mot = A.MOTORS[2]
+    T = A.winding_temperature(mot, np.full(40000, 20.0), dt=0.5, p_other_w=8.0)
+    assert T[-1] == pytest.approx(A.steady_winding_temperature(mot, 20.0, p_other_w=8.0), abs=0.2)
 
 
 def test_two_node_winding_first_heats_like_its_own_small_mass():
