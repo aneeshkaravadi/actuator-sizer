@@ -268,7 +268,7 @@ RATE = 120  # totes per hour: one every 30 s
 WALK_T = (3600.0 / RATE - 2 * lift_T) / 2  # each way
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def walk_load(j_idx, mass, scale=1.0):
     """(swing torque, speed, acceleration) over one stride at a leg joint, per side; None for the arms."""
     if J[j_idx] not in LEGS:
@@ -350,7 +350,12 @@ def joint_limit(j_idx, motor=mot, **kw):
     able = np.array([ok for _, ok in ev])
     heat = first_crossing(lambda x: evaluate(j_idx, x, motor, **kw)[0] <= motor.t_winding_max, cool)
     drive = first_crossing(lambda x: evaluate(j_idx, x, motor, **kw)[1], able)
-    both = first_crossing(lambda x: (lambda T, ok: T <= motor.t_winding_max and ok)(*evaluate(j_idx, x, motor, **kw)), cool & able)
+
+    def cool_and_able(x):
+        T, ok = evaluate(j_idx, x, motor, **kw)
+        return T <= motor.t_winding_max and ok
+
+    both = first_crossing(cool_and_able, cool & able)
     binding = "heat" if heat is not None and both is not None and abs(both - heat) < 1e-6 * both else "torque or speed"
     return both, binding, heat, drive
 
