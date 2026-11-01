@@ -10,7 +10,7 @@ authors = [{ name = "Aneesh Karavadi" }]
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["numpy>=1.26", "scipy>=1.11", "matplotlib>=3.8", "mujoco>=3.1"]
+dependencies = ["numpy>=2.0", "scipy>=1.11", "matplotlib>=3.8", "mujoco>=3.1"]
 
 [project.optional-dependencies]
 cad = ["build123d>=0.8"]
