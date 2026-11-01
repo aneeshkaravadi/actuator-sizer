@@ -1,6 +1,7 @@
 """Regenerate every figure and number in the README.   python examples/make_figures.py"""
 from __future__ import annotations
 
+import functools
 import json
 from pathlib import Path
 
@@ -12,7 +13,7 @@ import mujoco
 import numpy as np
 
 from actsizer import actuator as A
-from actsizer import asym, lift, model
+from actsizer import asym, gait, lift, model
 from actsizer import recovery as R
 from actsizer.cad import actuator_housing
 
@@ -229,7 +230,14 @@ results["gearbox"]["hip_reach_at_pick_m"] = round(reach, 3)
 results["gearbox"]["hand_play_mm_planetary_at_50_to_1"] = round(float(np.radians(A.PLANETARY.backlash_arcmin(50) / 60) * reach * 1000), 1)
 
 # ------------------------------------------------------------------ 3. tote shuttle: which joint overheats first?
+# One cycle: lift, carry the tote, lower it, walk back empty. The carry and the walk back are the standing
+# posture's torques (from MuJoCo) plus, at the leg joints, a human stride's swing in moment (Fukuchi et al.
+# 2018 gait data, scaled to the mass the legs carry; see gait.py). walking=False is my first version,
+# where both walks were just standing still.
 mot = A.MOTORS[1]
+STRIDE = gait.load_stride()
+LEGS = ("ankle", "knee", "hip")
+BODY = model.Body()
 m_empty, d_empty = model.load(model.Body(tote_mass=0.0))
 q_end = r.q[-1]
 d.qpos[:], d.qvel[:], d.qacc[:] = q_end, 0, 0
@@ -240,69 +248,192 @@ mujoco.mj_inverse(m_empty, d_empty)
 empty_tau = d_empty.qfrc_inverse.copy() / 2
 lift_T = r.t[-1]
 RATE = 120  # totes per hour: one every 30 s
+WALK_T = (3600.0 / RATE - 2 * lift_T) / 2  # each way
 
 
-def steady_T(j_idx, ratio, rate, motor=mot):
-    cycle = 3600.0 / rate
-    walk = max(cycle - 2 * lift_T, 0.0) / 2  # carry loaded half the remaining time, return empty the other half
-    dr = A.Drive(motor, ratio, gearbox=A.PLANETARY)
+@functools.lru_cache(maxsize=None)
+def walk_load(j_idx, mass, scale=1.0):
+    """(swing torque, speed, acceleration) over one stride at a leg joint, per side; None for the arms."""
+    if J[j_idx] not in LEGS:
+        return None
+    _, tau, qd, qdd = STRIDE.joint(J[j_idx], mass)
+    return scale * tau, qd, qdd
+
+
+def walk_scale(j_idx, which):
+    """Scale the mean stride's swing to the smallest or largest person's (per-person rms over mean-curve rms)."""
+    if J[j_idx] not in LEGS or which == "mean":
+        return 1.0
+    lo, _, hi = STRIDE.zero_mean_rms_range[J[j_idx]]
+    _, tau, _, _ = STRIDE.joint(J[j_idx], 1.0)
+    return (lo if which == "min" else hi) / float(np.sqrt(np.mean(tau**2)))
+
+
+def cycle_parts(j_idx, ratio, motor=mot, walking=True, kt_drop=0.0, people="mean"):
+    """Average copper and iron loss (W) in each phase, and whether every point is within the motor's limits."""
+    dr = A.Drive(motor, ratio, gearbox=A.PLANETARY, kt_drop=kt_drop)
     tau_j, qd_j, qdd_j = r.tau[:, j_idx] / 2, r.qd[:, j_idx], qdd[:, j_idx]
-    e_lift = np.trapezoid(dr.copper_loss(tau_j, qdd_j, qd_j), r.t)
-    # Lowering is the lift played backwards: with no damping the torques are the same at each posture,
-    # but the speeds flip sign, so the load drives the gearbox and friction helps.
-    e_lower = np.trapezoid(dr.copper_loss(tau_j, qdd_j, -qd_j), r.t)
-    p_avg = (e_lift + e_lower + walk * dr.copper_loss(hold_tau[j_idx]) + walk * dr.copper_loss(empty_tau[j_idx])) / cycle
-    return A.steady_winding_temperature(motor, p_avg)
+    parts = {"lift": (np.trapezoid(dr.copper_loss(tau_j, qdd_j, qd_j), r.t) / lift_T,
+                      np.trapezoid(dr.iron_loss(qd_j), r.t) / lift_T),
+             # Lowering is the lift played backwards: with no damping the torques are the same at each
+             # posture, but the speeds flip sign, so the load drives the gearbox and friction helps.
+             "lower": (np.trapezoid(dr.copper_loss(tau_j, qdd_j, -qd_j), r.t) / lift_T,
+                       np.trapezoid(dr.iron_loss(qd_j), r.t) / lift_T)}
+    ok = dr.feasible(tau_j, qd_j, qdd_j)
+    for phase, hold, mass in (("carry", hold_tau[j_idx], BODY.mass + BODY.tote_mass), ("walk back", empty_tau[j_idx], BODY.mass)):
+        w = walk_load(j_idx, mass, walk_scale(j_idx, people)) if walking else None
+        if w is None:
+            parts[phase] = (float(dr.copper_loss(hold)), 0.0)
+        else:
+            tau_w, qd_w, qdd_w = w
+            parts[phase] = (float(np.mean(dr.copper_loss(hold + tau_w, qdd_w, qd_w))), float(np.mean(dr.iron_loss(qd_w))))
+            ok = ok and dr.feasible(hold + tau_w, qd_w, qdd_w)
+    return parts, ok
 
 
-ratios = np.geomspace(4, 120, 60)
+def evaluate(j_idx, ratio, motor=mot, **kw):
+    """Steady winding temperature (C) over the cycle, and whether the drive can do every move."""
+    parts, ok = cycle_parts(j_idx, ratio, motor, **kw)
+    dur = {"lift": lift_T, "lower": lift_T, "carry": WALK_T, "walk back": WALK_T}
+    cycle = sum(dur.values())
+    p_cu = sum(parts[k][0] * dur[k] for k in dur) / cycle
+    p_fe = sum(parts[k][1] * dur[k] for k in dur) / cycle
+    return A.steady_winding_temperature(motor, p_cu, p_other_w=p_fe), ok
+
+
+def steady_T(j_idx, ratio, motor=mot, **kw):
+    return evaluate(j_idx, ratio, motor, **kw)[0]
+
+
+LIMIT_GRID = np.geomspace(4.0, 300.0, 160)
+
+
+def first_crossing(ok, grid_ok):
+    """Smallest ratio where ok(N) holds, from a scan on LIMIT_GRID refined by bisection."""
+    if not grid_ok.any():
+        return None
+    k = int(np.argmax(grid_ok))
+    if k == 0:
+        return float(LIMIT_GRID[0])
+    a, b = LIMIT_GRID[k - 1], LIMIT_GRID[k]
+    for _ in range(30):
+        mid = 0.5 * (a + b)
+        a, b = (a, mid) if ok(mid) else (mid, b)
+    return float(b)
+
+
+def min_ratio(ok):
+    return first_crossing(ok, np.array([ok(x) for x in LIMIT_GRID]))
+
+
+def joint_limit(j_idx, motor=mot, **kw):
+    """Minimum ratio for the joint, which limit sets it, and the heat-only and torque/speed-only minimums."""
+    ev = [evaluate(j_idx, x, motor, **kw) for x in LIMIT_GRID]
+    cool = np.array([T <= motor.t_winding_max for T, _ in ev])
+    able = np.array([ok for _, ok in ev])
+    heat = first_crossing(lambda x: evaluate(j_idx, x, motor, **kw)[0] <= motor.t_winding_max, cool)
+    drive = first_crossing(lambda x: evaluate(j_idx, x, motor, **kw)[1], able)
+    both = first_crossing(lambda x: (lambda T, ok: T <= motor.t_winding_max and ok)(*evaluate(j_idx, x, motor, **kw)), cool & able)
+    binding = "heat" if heat is not None and both is not None and abs(both - heat) < 1e-6 * both else "torque or speed"
+    return both, binding, heat, drive
+
+
+ratios = np.geomspace(4, 120, 120)
 fig, ax = plt.subplots(figsize=(7, 4.2))
+results["shuttle"] = {"rate_per_hour": RATE, "lift_s": round(float(lift_T), 2), "walk_each_way_s": round(float(WALK_T), 2),
+                      "stride_s": STRIDE.stride_time, "mass_carried_kg": BODY.mass + BODY.tote_mass}
+squat_cycle = 2 * lifts["squat"].t[-1] + 2 * WALK_T  # same walks, squat lifts instead of stoops
+results["shuttle"]["cycle_with_squat_lifts_s"] = round(float(squat_cycle), 1)
+results["shuttle"]["totes_per_hour_with_squat_lifts"] = round(float(3600 / squat_cycle))
 results["min_ratio_for_120_totes_per_hour"] = {}
+results["min_ratio_for_120_totes_per_hour_walking_as_standing"] = {}
 for i, j in enumerate(J):
-    T = np.array([steady_T(i, n, RATE) for n in ratios])
-    ax.plot(ratios, np.minimum(T, 400), label=j)
-    ok = np.where(T <= mot.t_winding_max)[0]
-    results["min_ratio_for_120_totes_per_hour"][j] = round(float(ratios[ok[0]]), 1) if len(ok) else None
+    T = np.array([steady_T(i, n) for n in ratios])
+    T0 = np.array([steady_T(i, n, walking=False) for n in ratios])
+    line, = ax.plot(ratios, np.minimum(T, 400), label=j)
+    if j in LEGS:
+        ax.plot(ratios, np.minimum(T0, 400), color=line.get_color(), ls=":", lw=1)
+    results["min_ratio_for_120_totes_per_hour"][j] = round(joint_limit(i)[0], 1)
+    results["min_ratio_for_120_totes_per_hour_walking_as_standing"][j] = round(joint_limit(i, walking=False)[0], 1)
 ax.axhline(mot.t_winding_max, color="k", ls=":", lw=1)
 ax.text(4.3, mot.t_winding_max + 4, f"winding limit {mot.t_winding_max:.0f} C", fontsize=8)
 ax.set_xscale("log")
 ax.set_ylim(25, 250)
 ax.set_xlabel(f"gear ratio N (the same {mot.name} at every joint)")
 ax.set_ylabel("steady winding temperature (C)")
-ax.set_title(f"Tote shuttle at {RATE}/hour: below what gear ratio does each joint overheat?", fontsize=9)
+ax.set_title(f"Tote shuttle at {RATE}/hour, walking loads from human gait data (dotted: walking treated as standing)\n"
+             "below what gear ratio does each joint overheat?", fontsize=9)
 ax.legend(fontsize=8)
 save(fig, "shuttle_thermal.png")
 results["hold_torque_per_side_Nm"] = dict(zip(J, np.round(hold_tau, 1).tolist()))
-results["min_ratio_for_120_totes_per_hour_by_motor"] = {}
-for motor in A.MOTORS:
+
+# hip heat budget per cycle (J), HT 76 M at its minimum ratio
+hip_i = J.index("hip")
+n_hip = results["min_ratio_for_120_totes_per_hour"]["hip"]
+parts, _ = cycle_parts(hip_i, n_hip)
+dur = {"lift": lift_T, "lower": lift_T, "carry": WALK_T, "walk back": WALK_T}
+results["hip_heat_per_cycle_J"] = {"ratio": n_hip, **{k: round(float((parts[k][0] + parts[k][1]) * dur[k])) for k in dur}}
+parts0, _ = cycle_parts(hip_i, n_hip, walking=False)
+results["hip_heat_per_cycle_J_walking_as_standing"] = {k: round(float((parts0[k][0] + parts0[k][1]) * dur[k])) for k in dur}
+
+# every kit, both mountings maxon gives, walking in or not; and which limit sets the hip's minimum
+results["shuttle_min_ratio_by_motor"] = {}
+results["hip_window_by_motor"] = {}
+for dsheet in A.MAXON_HT:
     row = {}
-    for i, j in enumerate(J):
-        T = np.array([steady_T(i, n, RATE, motor) for n in ratios])
-        ok = np.where(T <= motor.t_winding_max)[0]
-        row[j] = round(float(ratios[ok[0]]), 1) if len(ok) else None
-    results["min_ratio_for_120_totes_per_hour_by_motor"][f"{motor.name} ({motor.mass * 1000:.0f} g)"] = row
+    for mounting, label in (("plate", "rated mounting (housing on a plate)"), ("housing", "housing, no plate")):
+        motor = dsheet.motor(mounting)
+        cases = {"walking": {}, "walking as standing": {}}
+        for i, j in enumerate(J):
+            lim = joint_limit(i, motor)
+            cases["walking"][j] = round(lim[0], 1) if lim[0] else None
+            cases["walking as standing"][j] = round(joint_limit(i, motor, walking=False)[0], 1)
+            if j == "hip":
+                both, binding, heat, drive = lim
+        cases["hip limit set by"] = binding
+        cases["hip heat-only minimum"] = round(heat, 1)
+        cases["hip torque-and-speed minimum"] = round(drive, 1)
+        row[label] = cases
+        n_max = motor.w_max / SPEED_FLOOR * 0.8
+        results.setdefault("hip_max_ratio_for_push_recovery", {})[f"maxon {dsheet.name}"] = round(n_max, 1)
+        hi_ok = both is not None and both <= n_max
+        results["hip_window_by_motor"].setdefault(f"maxon {dsheet.name} ({dsheet.weight_g:.0f} g)", {})[label] = (
+            [round(both, 1), round(n_max, 1)] if hi_ok else None)
+    results["shuttle_min_ratio_by_motor"][f"maxon {dsheet.name} ({dsheet.weight_g:.0f} g)"] = row
+
+# sensitivities for the HT 76 M hip: people who walk with smaller or bigger swings, and torque per amp falling at high torque
+results["hip_min_ratio_sensitivity_HT76M"] = {
+    "gait swing of the smallest / mean / largest person": [round(joint_limit(hip_i, people=w)[0], 1) for w in ("min", "mean", "max")],
+    "torque per amp falling 0 / 20 / 40% from 2x nominal torque to stall": [round(joint_limit(hip_i, kt_drop=k)[0], 1) for k in (0.0, 0.2, 0.4)],
+}
+tm = np.abs(A.Drive(mot, n_hip, gearbox=A.PLANETARY).motor_torque(r.tau[:, hip_i] / 2, qdd[:, hip_i]))
+results["hip_motor_torque_at_min_ratio"] = {"peak_over_nominal": round(float(tm.max() / mot.t_nominal), 2),
+                                            "peak_over_stall": round(float(tm.max() / (mot.kt * mot.i_max)), 2)}
 
 # ------------------------------------------------------------------ 3b. the winding's ripple within each cycle
 # The steady analysis above uses each cycle's average loss. With the two-node model the winding (time
 # constant under a minute) swings within every 30 s cycle, so check the peak against the limit too.
+# Within a walk the losses are averaged over each 1.06 s stride, 50 times shorter than the winding's time constant.
 DT_TH = 0.05
-hip_i = J.index("hip")
 
 
-def cycle_loss(ratio, j_idx=hip_i, rate=RATE):
+def cycle_loss(ratio, j_idx=hip_i):
+    """Copper and iron loss through one cycle, sampled every DT_TH."""
     dr = A.Drive(mot, ratio, gearbox=A.PLANETARY)
     tau_j, qd_j, qdd_j = r.tau[:, j_idx] / 2, r.qd[:, j_idx], qdd[:, j_idx]
     t_move = np.arange(0.0, lift_T, DT_TH)
-    n_walk = round(max(3600.0 / rate - 2 * lift_T, 0.0) / 2 / DT_TH)
-    return np.concatenate([np.interp(t_move, r.t, dr.copper_loss(tau_j, qdd_j, qd_j)),  # lift
-                           np.full(n_walk, float(dr.copper_loss(hold_tau[j_idx]))),  # carry
-                           np.interp(t_move, r.t, dr.copper_loss(tau_j, qdd_j, -qd_j)),  # lower
-                           np.full(n_walk, float(dr.copper_loss(empty_tau[j_idx])))])  # walk back
+    n_walk = round(WALK_T / DT_TH)
+    parts, _ = cycle_parts(j_idx, ratio)
+    cu = np.concatenate([np.interp(t_move, r.t, dr.copper_loss(tau_j, qdd_j, qd_j)), np.full(n_walk, parts["carry"][0]),
+                         np.interp(t_move, r.t, dr.copper_loss(tau_j, qdd_j, -qd_j)), np.full(n_walk, parts["walk back"][0])])
+    fe = np.concatenate([np.interp(t_move, r.t, dr.iron_loss(qd_j)), np.full(n_walk, parts["carry"][1]),
+                         np.interp(t_move, r.t, dr.iron_loss(qd_j)), np.full(n_walk, parts["walk back"][1])])
+    return cu, fe
 
 
 def last_cycle(ratio, cycles=300):
-    p_cycle = cycle_loss(ratio)
-    return A.winding_temperature(mot, np.tile(p_cycle, cycles), DT_TH)[-len(p_cycle):]
+    cu, fe = cycle_loss(ratio)
+    return A.winding_temperature(mot, np.tile(cu, cycles), DT_TH, p_other_w=np.tile(fe, cycles))[-len(cu):]
 
 
 lo, hi = 20.0, 120.0  # hip ratio where the PEAK winding temperature reaches the limit
@@ -310,21 +441,22 @@ for _ in range(30):
     mid = 0.5 * (lo + hi)
     lo, hi = (mid, hi) if last_cycle(mid).max() > mot.t_winding_max else (lo, mid)
 peak_limit = hi
-avg_limit = results["min_ratio_for_120_totes_per_hour"]["hip"]
+avg_limit = min_ratio(lambda x: steady_T(hip_i, x) <= mot.t_winding_max)
 trace = last_cycle(peak_limit)
-results["hip_thermal_ripple"] = {"motor": mot.name, "limit_from_average": avg_limit, "limit_from_peak": round(peak_limit, 1),
+results["hip_thermal_ripple"] = {"motor": mot.name, "limit_from_average": round(avg_limit, 1), "limit_from_peak": round(peak_limit, 1),
                                  "swing_K_at_peak_limit": round(float(trace.max() - trace.min()), 1),
-                                 "peak_above_cycle_mean_K": round(float(trace.max() - trace.mean()), 1)}
+                                 "peak_above_cycle_mean_K": round(float(trace.max() - trace.mean()), 1),
+                                 "hottest_moment_s_into_cycle": round(float(np.argmax(trace) * DT_TH), 1)}
 fig, ax = plt.subplots(figsize=(7, 3.6))
 tt = np.arange(len(trace)) * DT_TH
 ax.plot(tt, trace, color="C2")
 ax.axhline(mot.t_winding_max, color="k", ls=":", lw=1)
 ax.axhline(trace.mean(), color="C2", ls="--", lw=1, label=f"cycle mean {trace.mean():.0f} C")
-phases = ((0.0, "lift"), (lift_T, "carry"), (3600.0 / RATE / 2, "lower"), (3600.0 / RATE / 2 + lift_T, "walk back"))
+phases = ((0.0, "lift"), (lift_T, "carry"), (lift_T + WALK_T, "lower"), (2 * lift_T + WALK_T, "walk back"))
 for k, (start, label) in enumerate(phases):
     ax.axvline(start, color="gray", lw=0.6)
     ax.text(start + 0.3, trace.min() + (0.5 if k % 2 == 0 else 2.0), label, fontsize=7, color="gray")
-ax.set_xlabel("time within one 30 s cycle (s)")
+ax.set_xlabel(f"time within one {3600 / RATE:.0f} s cycle (s)")
 ax.set_ylabel("hip winding temperature (C)")
 ax.set_title(f"{mot.name}, hip at {peak_limit:.1f}:1 after hours of shuttling: the winding swings "
              f"{trace.max() - trace.min():.0f} K\nwithin every cycle, so its peak sets the limit, not its average", fontsize=9)
