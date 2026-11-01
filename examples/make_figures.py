@@ -229,6 +229,23 @@ save(fig, "gearbox_tradeoffs.png")
 results["gearbox"]["hip_reach_at_pick_m"] = round(reach, 3)
 results["gearbox"]["hand_play_mm_planetary_at_50_to_1"] = round(float(np.radians(A.PLANETARY.backlash_arcmin(50) / 60) * reach * 1000), 1)
 
+# ------------------------------------------------------------------ 2c. do maxon's thermal numbers hang together?
+# maxon's nominal current is the continuous current that takes the winding to its limit at 25 C ambient,
+# at the nominal speed. Iron losses (maxon: a friction torque of Kt x no-load current) are put through the
+# whole thermal resistance like copper; the last column puts them on the housing only, as a bracket.
+results["maxon_rated_point_winding_C"] = {}
+for dsheet in A.MAXON_HT:
+    mm_ = dsheet.motor()
+    p_cu = dsheet.nominal_current**2 * mm_.r
+    p_fe = mm_.t_iron * dsheet.nominal_speed_rpm * 2 * np.pi / 60
+    a_cu = 0.00393
+    housing_only = 25 + (mm_.r_th * p_cu + dsheet.r_th_housing_ambient * p_fe) / (1 - mm_.r_th * p_cu * a_cu)
+    results["maxon_rated_point_winding_C"][dsheet.name] = {
+        "copper_only": round(dsheet.rated_winding_temperature(iron=False), 1),
+        "with_iron_loss": round(dsheet.rated_winding_temperature(), 1),
+        "iron_loss_on_housing_only": round(float(housing_only), 1),
+        "copper_W": round(p_cu, 1), "iron_W": round(p_fe, 1), "maxon_limit": dsheet.max_winding_temp}
+
 # ------------------------------------------------------------------ 3. tote shuttle: which joint overheats first?
 # One cycle: lift, carry the tote, lower it, walk back empty. The carry and the walk back are the standing
 # posture's torques (from MuJoCo) plus, at the leg joints, a human stride's swing in moment (Fukuchi et al.
