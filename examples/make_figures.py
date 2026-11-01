@@ -34,18 +34,41 @@ def save(fig, name):
 (ROOT / "models" / "sagittal_humanoid.xml").write_text(model.build_mjcf())
 
 # ------------------------------------------------------------------ 1. fastest balanced lift
-def fastest_balanced(style, lo=0.6, hi=4.0):
-    if not lift.simulate_lift(style, duration=hi).balanced():
+def balanced_quasi_static(r):
+    """My first balance check: the floor force taken as the weight and the ankle height left out."""
+    cop = -r.tau[:, 0] / (model.load()[0].body_mass.sum() * 9.81)
+    return bool(np.all((cop > lift.FOOT_X[0]) & (cop < lift.FOOT_X[1])))
+
+
+def fastest_balanced(style, lo=0.6, hi=8.0, check=lambda r: r.balanced()):
+    if not check(lift.simulate_lift(style, duration=hi)):
         return None
     for _ in range(25):
         mid = 0.5 * (lo + hi)
-        lo, hi = (lo, mid) if lift.simulate_lift(style, duration=mid).balanced() else (mid, hi)
+        lo, hi = (lo, mid) if check(lift.simulate_lift(style, duration=mid)) else (mid, hi)
     return hi
 
 
 results["fastest_balanced_lift_s"] = {s: fastest_balanced(s) for s in ("squat", "stoop")}
+results["fastest_balanced_lift_s_with_my_first_cop"] = {s: fastest_balanced(s, check=balanced_quasi_static) for s in ("squat", "stoop")}
 lifts = {s: lift.simulate_lift(s, duration=round(results["fastest_balanced_lift_s"][s] + 0.05, 2)) for s in ("squat", "stoop")}
 results["lift_peaks_both_sides"] = {s: r.peak() for s, r in lifts.items()}
+M_ROBOT_G = model.load()[0].body_mass.sum() * 9.81
+results["analyzed_lifts"] = {s: {"duration_s": round(float(r.t[-1]), 2), "balanced": r.balanced(),
+                                 "cop_range_m": [round(float(r.cop_x.min()), 3), round(float(r.cop_x.max()), 3)],
+                                 "floor_force_over_weight": [round(float(r.f_floor[:, 1].min() / M_ROBOT_G), 2),
+                                                             round(float(r.f_floor[:, 1].max() / M_ROBOT_G), 2)],
+                                 "largest_cop_change_from_my_first_formula_mm": round(float(1000 * np.abs(
+                                     r.cop_x + r.tau[:, 0] / M_ROBOT_G).max()), 1),
+                                 "hip_peak_per_side_Nm": round(float(np.abs(r.tau[:, 2]).max() / 2), 1),
+                                 "hip_peak_power_per_side_W": round(float(np.abs(r.power[:, 2]).max() / 2))}
+                             for s, r in lifts.items()}
+# squat against stoop at the same duration, so speed doesn't muddy the comparison
+same = {}
+for T in (lifts["stoop"].t[-1], lifts["squat"].t[-1]):
+    pk = {s: float(np.abs(lift.simulate_lift(s, duration=float(T)).tau[:, 2]).max()) for s in ("squat", "stoop")}
+    same[f"{T:.2f} s"] = round(pk["squat"] / pk["stoop"], 2)
+results["squat_over_stoop_hip_peak_at_equal_duration"] = same
 
 fig, axes = plt.subplots(2, 2, figsize=(11, 6.5), sharex="col")
 for col, (s, r) in enumerate(lifts.items()):
