@@ -86,7 +86,7 @@ class MaxonDatasheet:
 
         The peak current is capped at the listed stall torque over Kt, not at the listed stall
         current (just V/R). maxon's general rule is stall torque = Kt x starting current
-        (catalog p. 91), but for these kits it lists about a quarter of that, and it says its
+        (catalog p. 91), but for these kits it lists a fifth to a third of that, and it says its
         frameless kits' characteristics depart from strictly linear (p. 78). My reading is that
         the iron saturates; maxon doesn't publish the curve, so the cap is an inference.
         Changing the mounting changes only R_th2; the housing's heat capacity is kept.

@@ -80,7 +80,7 @@ The winding is modeled as a single thermal mass:
 
 $$C\,\dot T = P_{cu}\,[1 + \alpha(T - 25)] + P_{fe} - \frac{T - T_\text{amb}}{R_{th}}$$
 
-The resistance of copper rises with temperature ($\alpha = 0.00393$/K, which maxon also uses). The iron loss $P_{fe}$ goes through the same thermal resistance, the way maxon's own simplified model lumps the losses. At steady state, with the cycle-averaged losses $P = \bar P_{cu}$ and $Q = \bar P_{fe}$:
+The resistance of copper rises with temperature ($\alpha = 0.00393$/K). The iron loss $P_{fe}$ goes through the same thermal resistance, the way maxon's own simplified model lumps the losses. At steady state, with the cycle-averaged losses $P = \bar P_{cu}$ and $Q = \bar P_{fe}$:
 
 $$T = \frac{T_\text{amb} + R_{th}P(1 - 25\alpha) + R_{th}Q}{1 - R_{th}P\alpha}$$
 
@@ -94,7 +94,7 @@ In steady state the two resistances are just in series, so the closed form above
 
 **Within a cycle.** The shuttle analysis uses each cycle's average loss. Running the two-node model through the actual 30 s cycle (lift, loaded carry, lower, empty walk back, with each walk's losses averaged over a 1.06 s stride) shows the hip winding swinging 11 K, with its peak 5 K above the cycle mean. The mean itself matches the steady value for the average loss within a degree (`test_two_node_winding_under_a_repeating_load_averages_to_the_steady_value`), so the peak-based limit only moves from 50.5 to 51.6:1.
 
-**Datasheet values.** The tests check them against each other with maxon's own relations (catalog 2026/27, pp. 90 to 91): $K_t = 60/(2\pi K_v)$ in SI, the no-load speed just under $K_v V$, the stall current equal to $V/R$, the speed/torque gradient equal to $R/K_t^2$, the mechanical time constant equal to $RJ/K_t^2$ (rotor inertia), and the maximum efficiency equal to $(1 - \sqrt{I_0/I_A})^2$ (no-load current). maxon's rule is also that the stall torque is $K_t I_A$, but for these kits it lists about a quarter of that, and it says its frameless kits' characteristics depart from strictly linear (catalog p. 78; "Technology, short and to the point", 2023). My reading is that the iron saturates, so the current is capped at $\tau_\text{stall}/K_t$ instead of $I_A$. That's an inference: maxon doesn't publish the curve.
+**Datasheet values.** The tests check them against each other with maxon's own relations (catalog 2026/27, pp. 90 to 91): $K_t = 60/(2\pi K_v)$ in SI, the no-load speed just under $K_v V$, the stall current equal to $V/R$, the speed/torque gradient equal to $R/K_t^2$, the mechanical time constant equal to $RJ/K_t^2$ (rotor inertia), and the maximum efficiency equal to $(1 - \sqrt{I_0/I_A})^2$ (no-load current). maxon's rule is also that the stall torque is $K_t I_A$, but for these kits it lists only a fifth to a third of that (0.36, 0.26 and 0.18 of $K_t I_A$), and it says its frameless kits' characteristics depart from strictly linear (catalog p. 78). My reading is that the iron saturates, so the current is capped at $\tau_\text{stall}/K_t$ instead of $I_A$. That's an inference: maxon doesn't publish the curve.
 
 **The thermal values against maxon's rating.** maxon defines the nominal current as the continuous current that takes the winding to its maximum temperature (155 °C) at 25 °C ambient (catalog p. 92), at the nominal speed. So the model at that point is a check on the thermal resistances that doesn't use anything fitted:
 
